@@ -1,14 +1,15 @@
-"""Tests for pika.heartbeat."""
+"""Tests for pika._core.heartbeat."""
 
 import unittest
 from unittest import mock
 
 import pika.exceptions
-from pika import connection, frame, heartbeat
-from pika._utils import override
+from pika import frame
+from pika._core import connection, heartbeat
+from pika._core._utils import override
 
 
-class ConstructableConnection(connection.Connection):
+class ConstructableConnection(connection.AMQPConnection):
     """Adds dummy overrides for `Connection`'s abstract methods so that we can instantiate and test
     it.
     """
@@ -85,12 +86,12 @@ class HeartbeatTests(unittest.TestCase):
     def test_constructor_initial_idle_byte_intervals(self):
         self.assertEqual(self.obj._idle_byte_intervals, 0)
 
-    @mock.patch('pika.heartbeat.HeartbeatChecker._start_send_timer')
+    @mock.patch('pika._core.heartbeat.HeartbeatChecker._start_send_timer')
     def test_constructor_called_start_send_timer(self, timer):
         heartbeat.HeartbeatChecker(self.mock_conn, self.INTERVAL)
         timer.assert_called_once_with()
 
-    @mock.patch('pika.heartbeat.HeartbeatChecker._start_check_timer')
+    @mock.patch('pika._core.heartbeat.HeartbeatChecker._start_check_timer')
     def test_constructor_called_start_check_timer(self, timer):
         heartbeat.HeartbeatChecker(self.mock_conn, self.INTERVAL)
         timer.assert_called_once_with()
@@ -110,20 +111,20 @@ class HeartbeatTests(unittest.TestCase):
         self.obj.received()
         self.assertTrue(self.obj._heartbeat_frames_received, 1)
 
-    @mock.patch('pika.heartbeat.HeartbeatChecker._close_connection')
+    @mock.patch('pika._core.heartbeat.HeartbeatChecker._close_connection')
     def test_send_heartbeat_not_closed(self, close_connection):
         obj = heartbeat.HeartbeatChecker(self.mock_conn, self.INTERVAL)
         obj._send_heartbeat()
         close_connection.assert_not_called()
 
-    @mock.patch('pika.heartbeat.HeartbeatChecker._close_connection')
+    @mock.patch('pika._core.heartbeat.HeartbeatChecker._close_connection')
     def test_check_heartbeat_not_closed(self, close_connection):
         obj = heartbeat.HeartbeatChecker(self.mock_conn, self.INTERVAL)
         self.mock_conn.bytes_received = 128
         obj._check_heartbeat()
         close_connection.assert_not_called()
 
-    @mock.patch('pika.heartbeat.HeartbeatChecker._close_connection')
+    @mock.patch('pika._core.heartbeat.HeartbeatChecker._close_connection')
     def test_check_heartbeat_missed_bytes(self, close_connection):
         obj = heartbeat.HeartbeatChecker(self.mock_conn, self.INTERVAL)
         obj._idle_byte_intervals = self.INTERVAL
@@ -142,23 +143,23 @@ class HeartbeatTests(unittest.TestCase):
         self.obj._check_heartbeat()
         self.assertEqual(self.obj._idle_byte_intervals, 0)
 
-    @mock.patch('pika.heartbeat.HeartbeatChecker._update_counters')
+    @mock.patch('pika._core.heartbeat.HeartbeatChecker._update_counters')
     def test_check_heartbeat_update_counters(self, update_counters):
         heartbeat.HeartbeatChecker(self.mock_conn, self.INTERVAL)
         update_counters.assert_called_once_with()
 
-    @mock.patch('pika.heartbeat.HeartbeatChecker._send_heartbeat_frame')
+    @mock.patch('pika._core.heartbeat.HeartbeatChecker._send_heartbeat_frame')
     def test_send_heartbeat_sends_heartbeat_frame(self, send_heartbeat_frame):
         obj = heartbeat.HeartbeatChecker(self.mock_conn, self.INTERVAL)
         obj._send_heartbeat()
         send_heartbeat_frame.assert_called_once_with()
 
-    @mock.patch('pika.heartbeat.HeartbeatChecker._start_send_timer')
+    @mock.patch('pika._core.heartbeat.HeartbeatChecker._start_send_timer')
     def test_send_heartbeat_start_timer(self, start_send_timer):
         heartbeat.HeartbeatChecker(self.mock_conn, self.INTERVAL)
         start_send_timer.assert_called_once_with()
 
-    @mock.patch('pika.heartbeat.HeartbeatChecker._start_check_timer')
+    @mock.patch('pika._core.heartbeat.HeartbeatChecker._start_check_timer')
     def test_check_heartbeat_start_timer(self, start_check_timer):
         heartbeat.HeartbeatChecker(self.mock_conn, self.INTERVAL)
         start_check_timer.assert_called_once_with()

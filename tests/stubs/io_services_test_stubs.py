@@ -120,7 +120,7 @@ class IOServicesTestStubs:
         # Test entry point for `select_connection.IOLoop`-based async services
         # implementation.
 
-        from pika.adapters.select_connection import IOLoop
+        from pika._core.select_connection import IOLoop
         from pika.adapters.utils.selector_ioloop_adapter import SelectorIOServicesAdapter
 
         native_loop = IOLoop()

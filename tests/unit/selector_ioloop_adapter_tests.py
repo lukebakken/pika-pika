@@ -4,8 +4,8 @@ import inspect
 import sys
 import unittest
 
-import pika._utils
-from pika.adapters import select_connection
+import pika._core._utils
+from pika._core import select_connection
 from pika.adapters.utils.selector_ioloop_adapter import AbstractSelectorIOLoop
 
 try:
@@ -114,7 +114,7 @@ class SelectConnectionIOLoopConformanceTests(_ConformanceChecks,
 
 
 @unittest.skipUnless(HAS_GEVENT, 'gevent not installed')
-@unittest.skipIf(pika._utils.ON_WINDOWS, 'Windows not supported')
+@unittest.skipIf(pika._core._utils.ON_WINDOWS, 'Windows not supported')
 class GeventSelectorIOLoopConformanceTests(_ConformanceChecks,
                                            unittest.TestCase):
     loop_class = _GeventSelectorIOLoop

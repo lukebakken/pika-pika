@@ -35,16 +35,17 @@ from typing import (
     cast,
 )
 
-import pika._utils
-import pika.channel
-import pika.connection
+import pika._core._utils
+import pika._core.channel
+import pika._core.connection
 import pika.frame
+import pika.parameters
 import pika.spec
-from pika import exceptions, validators
-from pika._utils import override
+from pika import exceptions
 
 # NOTE: import SelectConnection after others to avoid circular dependency
-from pika.adapters import select_connection
+from pika._core import select_connection, validators
+from pika._core._utils import override
 from pika.adapters.utils import connection_workflow
 from pika.exchange_type import ExchangeType
 
@@ -300,7 +301,7 @@ class BlockingConnection:
     For more information about communicating with the blocking_connection
     adapter, be sure to check out the
     :class:`BlockingChannel <BlockingChannel>` class which implements the
-    :class:`Channel <pika.channel.Channel>` based communication for the
+    :class:`Channel <pika._core.channel.AMQPChannel>` based communication for the
     blocking_connection adapter.
 
     To prevent recursion/reentrancy, the blocking connection and channel
@@ -332,7 +333,7 @@ class BlockingConnection:
     deadlock, applications may configure the `blocked_connection_timeout`
     connection parameter when instantiating `BlockingConnection`. Upon blocked
     connection timeout, this adapter will raise ConnectionBlockedTimeout
-    exception`. See `pika.connection.ConnectionParameters` documentation to
+    exception`. See `pika.parameters.ConnectionParameters` documentation to
     learn more about the `blocked_connection_timeout` configuration.
 
     """
@@ -346,8 +347,8 @@ class BlockingConnection:
 
     def __init__(
             self,
-            parameters: pika.connection.Parameters |
-        Sequence[pika.connection.Parameters] | None = None,
+            parameters: pika.parameters.Parameters |
+        Sequence[pika.parameters.Parameters] | None = None,
             _impl_class: select_connection.SelectConnection | None = None
     ) -> None:
         """
@@ -355,10 +356,10 @@ class BlockingConnection:
 
         :param parameters:
             Connection parameters instance or non-empty sequence of them. If
-            None, a `pika.connection.Parameters` instance will be created with
+            None, a `pika.parameters.Parameters` instance will be created with
             default settings. See `pika.AMQPConnectionWorkflow` for more
             details about multiple parameter configurations and retries.
-            Type: `None | pika.connection.Parameters | sequence`.
+            Type: `None | pika.parameters.Parameters | sequence`.
         :param _impl_class: for tests/debugging only; implementation class;
             None=default
 
@@ -456,8 +457,8 @@ class BlockingConnection:
 
     def _create_connection(
         self,
-        configs: pika.connection.Parameters |
-        Sequence[pika.connection.Parameters] | None = None,
+        configs: pika.parameters.Parameters |
+        Sequence[pika.parameters.Parameters] | None = None,
         impl_class: select_connection.SelectConnection | None = None
     ) -> select_connection.SelectConnection:
         """
@@ -465,16 +466,16 @@ class BlockingConnection:
 
         :param configs: Connection
             parameters instance or non-empty sequence of them.
-            Type: `None | pika.connection.Parameters | sequence`.
+            Type: `None | pika.parameters.Parameters | sequence`.
         :param impl_class: for tests/debugging only; implementation class.
 
 
         :raises Exception: on failure
         """
         if configs is None:
-            configs = (pika.connection.Parameters(),)
+            configs = (pika.parameters.Parameters(),)
 
-        if isinstance(configs, pika.connection.Parameters):
+        if isinstance(configs, pika.parameters.Parameters):
             configs = (configs,)
 
         if not configs:
@@ -701,8 +702,8 @@ class BlockingConnection:
 
     def add_on_connection_blocked_callback(
         self, callback: Callable[[
-            pika.connection.Connection, pika.frame.Method[pika.spec.Connection.
-                                                          Blocked]
+            pika._core.connection.AMQPConnection, pika.frame.
+            Method[pika.spec.Connection.Blocked]
         ], None]
     ) -> None:
         """RabbitMQ AMQP extension - Add a callback to be notified when the
@@ -733,13 +734,14 @@ class BlockingConnection:
         self._impl.add_on_connection_blocked_callback(
             functools.partial(
                 self._on_connection_blocked,
-                functools.partial(callback,
-                                  cast(pika.connection.Connection, self))))
+                functools.partial(
+                    callback, cast(pika._core.connection.AMQPConnection,
+                                   self))))
 
     def add_on_connection_unblocked_callback(
         self, callback: Callable[[
-            pika.connection.Connection, pika.frame.Method[pika.spec.Connection.
-                                                          Unblocked]
+            pika._core.connection.AMQPConnection, pika.frame.
+            Method[pika.spec.Connection.Unblocked]
         ], None]
     ) -> None:
         """RabbitMQ AMQP extension - Add a callback to be notified when the
@@ -755,8 +757,9 @@ class BlockingConnection:
         self._impl.add_on_connection_unblocked_callback(
             functools.partial(
                 self._on_connection_unblocked,
-                functools.partial(callback,
-                                  cast(pika.connection.Connection, self))))
+                functools.partial(
+                    callback, cast(pika._core.connection.AMQPConnection,
+                                   self))))
 
     def call_later(self, delay: float, callback: Callable[[], None]) -> int:
         """
@@ -953,12 +956,12 @@ class BlockingConnection:
         """
         assert duration >= 0, duration
 
-        deadline = pika._utils.time_now() + duration
+        deadline = pika._core._utils.time_now() + duration
         time_limit = duration
         # Process events at least once
         while True:
             self.process_data_events(time_limit)
-            time_limit = deadline - pika._utils.time_now()
+            time_limit = deadline - pika._core._utils.time_now()
             if time_limit <= 0:
                 break
 
@@ -1248,7 +1251,7 @@ class _QueueConsumerGeneratorInfo:
 class BlockingChannel:
     """The BlockingChannel implements blocking semantics for most things that
     one would use callback-passing-style for with the
-    :py:class:`~pika.channel.Channel` class. In addition,
+    :py:class:`~pika._core.channel.AMQPChannel` class. In addition,
     the `BlockingChannel` class implements a :term:`generator` that allows
     you to :doc:`consume messages </examples/blocking_consumer_generator>`
     without using callbacks.
@@ -1282,7 +1285,7 @@ class BlockingChannel:
 
     _CONSUMER_CANCELLED_CB_KEY = 'blocking_channel_consumer_cancelled'
 
-    def __init__(self, channel_impl: pika.channel.Channel,
+    def __init__(self, channel_impl: pika._core.channel.AMQPChannel,
                  connection: BlockingConnection) -> None:
         """
         Create a new instance of the Channel.
@@ -1422,7 +1425,8 @@ class BlockingChannel:
                                          exceptions.ChannelClosedByBroker):
             raise self._closing_reason
 
-    def _on_puback_message_returned(self, channel: pika.channel.Channel,
+    def _on_puback_message_returned(self,
+                                    channel: pika._core.channel.AMQPChannel,
                                     method: pika.spec.Basic.Return,
                                     properties: pika.spec.BasicProperties,
                                     body: bytes) -> None:
@@ -1461,7 +1465,7 @@ class BlockingChannel:
         self._pending_events.append(evt)
         self.connection._request_channel_dispatch(self.channel_number)
 
-    def _on_channel_closed(self, _channel: pika.channel.Channel,
+    def _on_channel_closed(self, _channel: pika._core.channel.AMQPChannel,
                            reason: Exception) -> None:
         """
         Callback from impl notifying us that the channel has been closed.
@@ -1522,7 +1526,8 @@ class BlockingChannel:
         else:
             self._add_pending_event(evt)
 
-    def _on_consumer_message_delivery(self, _channel: pika.channel.Channel,
+    def _on_consumer_message_delivery(self,
+                                      _channel: pika._core.channel.AMQPChannel,
                                       method: pika.spec.Basic.Deliver,
                                       properties: pika.spec.BasicProperties,
                                       body: bytes) -> None:
@@ -2109,7 +2114,7 @@ class BlockingChannel:
                 continue
 
             # Wait with inactivity timeout
-            wait_start_time = pika._utils.time_now()
+            wait_start_time = pika._core._utils.time_now()
             wait_deadline = wait_start_time + inactivity_timeout
             delta = inactivity_timeout
 
@@ -2126,7 +2131,7 @@ class BlockingChannel:
                     # Got message(s)
                     break
 
-                delta = wait_deadline - pika._utils.time_now()
+                delta = wait_deadline - pika._core._utils.time_now()
                 if delta <= 0.0:
                     # Signal inactivity timeout
                     yield (None, None, None)

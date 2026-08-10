@@ -15,9 +15,9 @@ import threading
 import time
 from typing import TYPE_CHECKING, Any, Callable, Sequence, Union
 
-import pika._utils
-from pika._utils import override
-from pika.adapters.base_connection import BaseConnection
+import pika._core._utils
+from pika._core._utils import override
+from pika._core.base_connection import BaseConnection
 from pika.adapters.utils import nbio_interface
 from pika.adapters.utils.selector_ioloop_adapter import (
     AbstractSelectorIOLoop,
@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 
     from typing_extensions import TypedDict
 
-    from pika import connection
+    from pika._core import connection
     from pika.adapters.utils import connection_workflow
 
     SELECT_ERROR_T = Union[OSError, IOError, InterruptedError, select.error]
@@ -89,18 +89,19 @@ class SelectConnection(BaseConnection):
     the given platform.
     """
 
-    def __init__(
-            self,
-            parameters: connection.Parameters | None = None,
-            on_open_callback: Callable[[connection.Connection], None] |
-        None = None,
-            on_open_error_callback: Callable[
-                [connection.Connection, BaseException], None] | None = None,
-            on_close_callback: Callable[[connection.Connection, BaseException],
-                                        None] | None = None,
-            custom_ioloop: nbio_interface.AbstractIOServices | IOLoop |
-        None = None,
-            internal_connection_workflow: bool = True) -> None:
+    def __init__(self,
+                 parameters: connection.Parameters | None = None,
+                 on_open_callback: Callable[[connection.AMQPConnection], None] |
+                 None = None,
+                 on_open_error_callback: Callable[
+                     [connection.AMQPConnection, BaseException], None] |
+                 None = None,
+                 on_close_callback: Callable[
+                     [connection.AMQPConnection, BaseException], None] |
+                 None = None,
+                 custom_ioloop: nbio_interface.AbstractIOServices | IOLoop |
+                 None = None,
+                 internal_connection_workflow: bool = True) -> None:
         """
         Create a new instance of the Connection object.
 
@@ -141,7 +142,7 @@ class SelectConnection(BaseConnection):
     def create_connection(
         cls,
         connection_configs: Sequence[connection.Parameters],
-        on_done: Callable[[(connection.Connection |
+        on_done: Callable[[(connection.AMQPConnection |
                             connection_workflow.AMQPConnectorException)], None],
         custom_ioloop: Any | None = None,
         workflow: connection_workflow.AbstractAMQPConnectionWorkflow |
@@ -164,7 +165,7 @@ class SelectConnection(BaseConnection):
             :param params: Connection parameters
             """
             if params is None:
-                raise ValueError('Expected pika.connection.Parameters '
+                raise ValueError('Expected pika.parameters.Parameters '
                                  'instance, but got None in params arg.')
             return cls(parameters=params,
                        custom_ioloop=nbio,
@@ -298,7 +299,7 @@ class _Timer:
             raise ValueError(
                 f'call_later: delay must be non-negative, but got {delay!r}')
 
-        now = pika._utils.time_now()
+        now = pika._core._utils.time_now()
 
         timeout = _Timeout(now + delay, callback)
 
@@ -339,7 +340,7 @@ class _Timer:
             timers
         """
         if self._timeout_heap:
-            now = pika._utils.time_now()
+            now = pika._core._utils.time_now()
             interval = max(0, self._timeout_heap[0].deadline - now)
         else:
             interval = None
@@ -349,7 +350,7 @@ class _Timer:
     def process_timeouts(self) -> None:
         """Process pending timeouts, invoking callbacks for those whose time has come."""
         if self._timeout_heap:
-            now = pika._utils.time_now()
+            now = pika._core._utils.time_now()
 
             # Remove ready timeouts from the heap now to prevent IO starvation
             # from timeouts added during callback processing
@@ -719,7 +720,7 @@ class _PollerBase(abc.ABC):
                 # Send byte to interrupt the poll loop, use send() instead of
                 # os.write for Windows compatibility
                 self._w_interrupt.send(b'X')
-            except pika._utils.SOCKET_ERROR as err:
+            except pika._core._utils.SOCKET_ERROR as err:
                 if err.errno not in _TRY_IO_AGAIN_SOCK_ERROR_CODES:
                     raise
             except Exception as err:
@@ -967,7 +968,7 @@ class _PollerBase(abc.ABC):
         Socketpair() is not supported on some OS (Win) so use a pair of simple TCP sockets instead.
         The sockets will be closed and garbage collected by python when the ioloop itself is.
         """
-        return pika._utils.nonblocking_socketpair()
+        return pika._core._utils.nonblocking_socketpair()
 
     def _read_interrupt(self, _interrupt_fd: int, _events: int) -> None:
         """
@@ -982,7 +983,7 @@ class _PollerBase(abc.ABC):
         try:
             # NOTE Use recv instead of os.read for windows compatibility
             self._r_interrupt.recv(512)
-        except pika._utils.SOCKET_ERROR as err:
+        except pika._core._utils.SOCKET_ERROR as err:
             if err.errno not in _TRY_IO_AGAIN_SOCK_ERROR_CODES:
                 raise
 
@@ -1296,7 +1297,7 @@ class PollPoller(_PollerBase):
             # POLLOUT and it doesn't seem to set POLLERR along with POLLHUP when
             # socket connection fails, for example. So, we need to at least add
             # POLLERR when we see POLLHUP
-            if (event & PollEvents.HANGUP) and pika._utils.ON_OSX:
+            if (event & PollEvents.HANGUP) and pika._core._utils.ON_OSX:
                 event |= PollEvents.ERROR
 
             fd_event_map[fileno] |= event

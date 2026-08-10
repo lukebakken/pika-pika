@@ -1,15 +1,15 @@
 """
 The credentials classes are used to encapsulate all authentication information for the
-:class:`~pika.connection.ConnectionParameters` class.
+:class:`~pika.parameters.ConnectionParameters` class.
 
 The :class:`~pika.credentials.PlainCredentials` class returns the properly formatted username and
-password to the :class:`~pika.connection.Connection`.
+password to the :class:`~pika._core.connection.AMQPConnection`.
 
 To authenticate with Pika, create a :class:`~pika.credentials.PlainCredentials` object passing in
 the username and password and pass it as the credentials argument value to the
-:class:`~pika.connection.ConnectionParameters` object.
+:class:`~pika.parameters.ConnectionParameters` object.
 
-If you are using :class:`~pika.connection.URLParameters` you do not need a credentials object, one
+If you are using :class:`~pika.parameters.URLParameters` you do not need a credentials object, one
 will automatically be created for you.
 
 If you are looking to implement SSL certificate style authentication, you would extend the
@@ -21,9 +21,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Type, Union
 
-from pika._utils import override
-
-from ._utils import as_bytes
+from pika._core._utils import as_bytes, override
 
 if TYPE_CHECKING:
     from pika.spec import Connection

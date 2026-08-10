@@ -1,4 +1,4 @@
-"""pika.data tests."""
+"""pika._core.data tests."""
 
 import datetime
 import decimal
@@ -7,7 +7,8 @@ import unittest
 from collections import OrderedDict
 from typing import ClassVar
 
-from pika import data, exceptions
+from pika import exceptions
+from pika._core import data
 
 
 class DataTests(unittest.TestCase):

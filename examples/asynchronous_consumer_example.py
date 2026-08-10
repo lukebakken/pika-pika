@@ -97,7 +97,7 @@ class ExampleConsumer:
 
         Since it is unexpected, we will reconnect to RabbitMQ if it disconnects.
 
-        :param pika.connection.Connection _connection: The closed connection obj
+        :param pika._core.connection.AMQPConnection _connection: The closed connection obj
         :param Exception reason: exception representing reason for loss of connection.
         """
         self._channel = None
@@ -134,7 +134,7 @@ class ExampleConsumer:
 
         Since the channel is now open, we'll declare the exchange to use.
 
-        :param pika.channel.Channel channel: The channel object
+        :param pika._core.channel.AMQPChannel channel: The channel object
         """
         LOGGER.info('Channel opened')
         self._channel = channel
@@ -156,7 +156,7 @@ class ExampleConsumer:
         as re-declare an exchange or queue with different parameters. In this case, we'll close the
         connection to shutdown the object.
 
-        :param pika.channel.Channel: The closed channel
+        :param pika._core.channel.AMQPChannel: The closed channel
         :param Exception reason: why the channel was closed
         """
         LOGGER.warning('Channel %i was closed: %s', channel, reason)
@@ -300,7 +300,7 @@ class ExampleConsumer:
         properties passed in is an instance of BasicProperties with the message properties and the
         body is the message that was sent.
 
-        :param pika.channel.Channel _unused_channel: The channel object
+        :param pika._core.channel.AMQPChannel _unused_channel: The channel object
         :param pika.Spec.Basic.Deliver: basic_deliver method
         :param pika.Spec.BasicProperties: properties
         :param bytes body: The message body

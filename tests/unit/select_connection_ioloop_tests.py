@@ -16,8 +16,8 @@ from datetime import datetime, timezone
 from unittest import mock
 
 import pika
-import pika._utils
-from pika.adapters import select_connection
+import pika._core._utils
+from pika._core import select_connection
 
 LOGGER = logging.getLogger(__name__)
 
@@ -564,9 +564,9 @@ class IOLoopEintrTestCaseSelect(IOLoopBaseTest):
         self.poller.stop()
         self.fail('Eintr-test timed out')
 
-    @unittest.skipUnless(pika._utils.HAVE_SIGNAL,
+    @unittest.skipUnless(pika._core._utils.HAVE_SIGNAL,
                          "This platform doesn't support posix signals")
-    @mock.patch('pika.adapters.select_connection._is_resumable')
+    @mock.patch('pika._core.select_connection._is_resumable')
     def test_eintr(self,
                    is_resumable_mock,
                    is_resumable_raw=select_connection._is_resumable):
@@ -648,12 +648,12 @@ class SelectPollerTestPollWithoutSockets(unittest.TestCase):
 
         delay = poller._get_wait_seconds()
         self.assertIsNotNone(delay)
-        deadline = pika._utils.time_now() + delay
+        deadline = pika._core._utils.time_now() + delay
 
         while True:
             poller._process_timeouts()
 
-            if pika._utils.time_now() < deadline:
+            if pika._core._utils.time_now() < deadline:
                 self.assertEqual(timer_call_container, [])
             else:
                 # One last time in case deadline reached after previous
@@ -749,7 +749,7 @@ class DefaultPollerSocketEventsTestCase(unittest.TestCase):
 
         :returns: two-tuple of connected non-blocking sockets
         """
-        pair = pika._utils.nonblocking_socketpair()
+        pair = pika._core._utils.nonblocking_socketpair()
         self.addCleanup(pair[0].close)
         self.addCleanup(pair[1].close)
         return pair
@@ -772,7 +772,7 @@ class DefaultPollerSocketEventsTestCase(unittest.TestCase):
         """
         try:
             sock.connect(addr_pair)
-        except pika._utils.SOCKET_ERROR as error:
+        except pika._core._utils.SOCKET_ERROR as error:
             # EINPROGRESS for posix and EWOULDBLOCK for windows
             if error.errno not in (
                     errno.EINPROGRESS,
@@ -786,7 +786,7 @@ class DefaultPollerSocketEventsTestCase(unittest.TestCase):
         :return: socket address pair (ip-addr, port) that will refuse connection
 
         """
-        s1, s2 = pika._utils.nonblocking_socketpair()
+        s1, s2 = pika._core._utils.nonblocking_socketpair()
         s2.close()
         self.addCleanup(s1.close)
         return s1.getsockname()

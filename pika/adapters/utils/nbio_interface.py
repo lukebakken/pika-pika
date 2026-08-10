@@ -1,7 +1,7 @@
 """
 Non-blocking I/O interface for pika connection adapters.
 
-I/O interface expected by `pika.adapters.base_connection.BaseConnection`
+I/O interface expected by `pika._core.base_connection.BaseConnection`
 
 NOTE: This API is modeled after asyncio in python3 for a couple of reasons
     1. It's a sensible API

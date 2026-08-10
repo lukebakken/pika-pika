@@ -1,10 +1,10 @@
 # Channel
 
-::: pika.channel
+::: pika._core.channel
 
-## Channel
+## AMQPChannel
 
-::: pika.channel.Channel
+::: pika._core.channel.AMQPChannel
     options:
       members: true
       inherited_members: true

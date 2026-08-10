@@ -1,4 +1,4 @@
-"""Tests for pika.connection.Connection."""
+"""Tests for pika._core.connection.AMQPConnection."""
 
 import platform
 import random
@@ -6,15 +6,16 @@ import unittest
 from unittest import mock
 
 import pika
-from pika import channel, connection, credentials, exceptions, frame, spec
-from pika._utils import override
+from pika import credentials, exceptions, frame, spec
+from pika._core import channel, connection
+from pika._core._utils import override
 
 
 def dummy_callback():
     """Callback method to use in tests."""
 
 
-class ConstructibleConnection(connection.Connection):
+class ConstructibleConnection(connection.AMQPConnection):
     """Adds dummy overrides for `Connection`'s abstract methods so that we can instantiate and test
     it.
     """
@@ -48,14 +49,14 @@ class ConnectionTests(unittest.TestCase):
 
     def setUp(self):
 
-        class ChannelTemplate(channel.Channel):
+        class ChannelTemplate(channel.AMQPChannel):
             channel_number = None
 
         with mock.patch.object(ConstructibleConnection,
                                '_adapter_connect_stream'):
             self.connection = ConstructibleConnection()
             self.connection._set_connection_state(
-                connection.Connection.CONNECTION_OPEN)
+                connection.AMQPConnection.CONNECTION_OPEN)
             self.connection._opened = True
 
         self.channel = mock.Mock(spec=ChannelTemplate)
@@ -69,7 +70,7 @@ class ConnectionTests(unittest.TestCase):
         del self.connection
         del self.channel
 
-    @mock.patch('pika.connection.Connection._on_close_ready')
+    @mock.patch('pika._core.connection.AMQPConnection._on_close_ready')
     def test_close_calls_on_close_ready_when_no_channels(
             self, on_close_ready_mock):
         self.connection._channels = {}
@@ -77,13 +78,13 @@ class ConnectionTests(unittest.TestCase):
         self.assertTrue(on_close_ready_mock.called,
                         'on_close_ready_mock should have been called')
 
-    @mock.patch('pika.connection.Connection._on_close_ready')
+    @mock.patch('pika._core.connection.AMQPConnection._on_close_ready')
     def test_close_closes_open_channels(self, on_close_ready):
         self.connection.close()
         self.channel.close.assert_called_once_with(200, 'Normal shutdown')
         self.assertFalse(on_close_ready.called)
 
-    @mock.patch('pika.connection.Connection._on_close_ready')
+    @mock.patch('pika._core.connection.AMQPConnection._on_close_ready')
     def test_close_closes_opening_channels(self, on_close_ready):
         self.channel.is_open = False
         self.channel.is_closing = False
@@ -92,7 +93,7 @@ class ConnectionTests(unittest.TestCase):
         self.channel.close.assert_called_once_with(200, 'Normal shutdown')
         self.assertFalse(on_close_ready.called)
 
-    @mock.patch('pika.connection.Connection._on_close_ready')
+    @mock.patch('pika._core.connection.AMQPConnection._on_close_ready')
     def test_close_does_not_close_closing_channels(self, on_close_ready):
         self.channel.is_open = False
         self.channel.is_closing = True
@@ -101,7 +102,7 @@ class ConnectionTests(unittest.TestCase):
         self.assertFalse(self.channel.close.called)
         self.assertFalse(on_close_ready.called)
 
-    @mock.patch('pika.connection.Connection._close_channels')
+    @mock.patch('pika._core.connection.AMQPConnection._close_channels')
     def test_close_raises_wrong_state_when_already_closed_or_closing(
             self, close_channels):
         for closed_state in (self.connection.CONNECTION_CLOSED,
@@ -112,7 +113,7 @@ class ConnectionTests(unittest.TestCase):
             self.assertEqual(self.channel.close.call_count, 0)
             self.assertEqual(self.connection.connection_state, closed_state)
 
-    @mock.patch('pika.connection.Connection._rpc')
+    @mock.patch('pika._core.connection.AMQPConnection._rpc')
     def test_update_secret_raises_wrong_state_when_not_open(self, rpc):
         connection_states = (self.connection.CONNECTION_CLOSED,
                              self.connection.CONNECTION_CLOSING,
@@ -125,7 +126,7 @@ class ConnectionTests(unittest.TestCase):
             with self.assertRaises(exceptions.ConnectionWrongStateError):
                 self.connection.update_secret(mock.Mock(), mock.Mock())
 
-    @mock.patch('pika.connection.Connection._send_method')
+    @mock.patch('pika._core.connection.AMQPConnection._send_method')
     def test_update_secret_sends_method(self, send_method):
         """Make sure it sends the update secret method."""
         new_secret = mock.Mock()
@@ -135,7 +136,7 @@ class ConnectionTests(unittest.TestCase):
         send_method.assert_called_with(
             0, spec.Connection.UpdateSecret(new_secret, reason))
 
-    @mock.patch('pika.connection.Connection._send_method')
+    @mock.patch('pika._core.connection.AMQPConnection._send_method')
     def test_update_secret_adds_callback_on_update_secret_ok(self, send_method):
         """Make sure the on update secret ok callback is added."""
         self.connection.connection_state = self.connection.CONNECTION_OPEN
@@ -159,7 +160,7 @@ class ConnectionTests(unittest.TestCase):
             'Received %s frame for unregistered channel %i on %s',
             unexpected_frame.NAME, unknown_channel_num, self.connection)
 
-    @mock.patch('pika.connection.Connection._on_close_ready')
+    @mock.patch('pika._core.connection.AMQPConnection._on_close_ready')
     def test_on_channel_cleanup_with_closing_channels(self, on_close_ready):
         r"""If connection is closing but closing channels remain, do not call \ _on_close_ready."""
         self.channel.is_open = False
@@ -170,7 +171,7 @@ class ConnectionTests(unittest.TestCase):
         self.assertFalse(on_close_ready.called,
                          '_on_close_ready should not have been called')
 
-    @mock.patch('pika.connection.Connection._on_close_ready')
+    @mock.patch('pika._core.connection.AMQPConnection._on_close_ready')
     def test_on_channel_cleanup_closing_state_last_channel_calls_on_close_ready(
             self, on_close_ready_mock):
         self.connection.connection_state = self.connection.CONNECTION_CLOSING
@@ -180,7 +181,7 @@ class ConnectionTests(unittest.TestCase):
         self.assertTrue(on_close_ready_mock.called,
                         '_on_close_ready should have been called')
 
-    @mock.patch('pika.connection.Connection._on_close_ready')
+    @mock.patch('pika._core.connection.AMQPConnection._on_close_ready')
     def test_on_channel_cleanup_closing_state_more_channels_no_on_close_ready(
             self, on_close_ready_mock):
         self.connection.connection_state = self.connection.CONNECTION_CLOSING
@@ -192,7 +193,7 @@ class ConnectionTests(unittest.TestCase):
         self.assertFalse(on_close_ready_mock.called,
                          '_on_close_ready should not have been called')
 
-    @mock.patch('pika.connection.Connection._on_close_ready')
+    @mock.patch('pika._core.connection.AMQPConnection._on_close_ready')
     def test_on_channel_cleanup_non_closing_state(self, on_close_ready):
         """If connection isn't closing _on_close_ready should not be called."""
         self.connection._on_channel_cleanup(mock.Mock())
@@ -314,7 +315,7 @@ class ConnectionTests(unittest.TestCase):
             self.assertIs(type(conn_exc), exceptions.ProbableAccessDeniedError)
             self.assertSequenceEqual(conn_exc.args, [repr(original_exc)])
 
-    @mock.patch('pika.connection.Connection._adapter_connect_stream')
+    @mock.patch('pika._core.connection.AMQPConnection._adapter_connect_stream')
     def test_new_conn_should_use_first_channel(self, connect):
         """_next_channel_number in new conn should always be 1."""
         with mock.patch.object(ConstructibleConnection,
@@ -365,7 +366,7 @@ class ConnectionTests(unittest.TestCase):
     def test_channel(self):
         """Test the channel method."""
         self.connection._next_channel_number = mock.Mock(return_value=42)
-        test_channel = mock.Mock(spec=channel.Channel)
+        test_channel = mock.Mock(spec=channel.AMQPChannel)
         self.connection._create_channel = mock.Mock(return_value=test_channel)
         self.connection._add_channel_callbacks = mock.Mock()
         ret_channel = self.connection.channel(on_open_callback=dummy_callback)
@@ -548,11 +549,11 @@ class ConnectionTests(unittest.TestCase):
         self.assertIs(self.connection.server_capabilities,
                       self.connection.server_properties['capabilities'])
 
-    @mock.patch('pika.heartbeat.HeartbeatChecker')
+    @mock.patch('pika._core.heartbeat.HeartbeatChecker')
     @mock.patch('pika.frame.Method')
     @mock.patch.object(ConstructibleConnection,
                        '_adapter_emit_data',
-                       spec_set=connection.Connection._adapter_emit_data)
+                       spec_set=connection.AMQPConnection._adapter_emit_data)
     def test_on_connection_tune(self, _adapter_emit_data, method,
                                 heartbeat_checker):
         """Make sure _on_connection_tune tunes the connection params."""
@@ -883,12 +884,13 @@ class ConnectionTests(unittest.TestCase):
             pika.frame.Method(0, pika.spec.Connection.Unblocked()))
         self.assertEqual(buffer, [])
 
-    @mock.patch.object(connection.Connection,
-                       '_adapter_connect_stream',
-                       spec_set=connection.Connection._adapter_connect_stream)
-    @mock.patch.object(connection.Connection,
+    @mock.patch.object(
+        connection.AMQPConnection,
+        '_adapter_connect_stream',
+        spec_set=connection.AMQPConnection._adapter_connect_stream)
+    @mock.patch.object(connection.AMQPConnection,
                        'add_on_connection_blocked_callback')
-    @mock.patch.object(connection.Connection,
+    @mock.patch.object(connection.AMQPConnection,
                        'add_on_connection_unblocked_callback')
     def test_create_with_blocked_connection_timeout_config(
             self, add_on_unblocked_callback_mock, add_on_blocked_callback_mock,
@@ -908,9 +910,10 @@ class ConnectionTests(unittest.TestCase):
             conn._on_connection_unblocked)
 
     @mock.patch.object(ConstructibleConnection, '_adapter_call_later')
-    @mock.patch.object(connection.Connection,
-                       '_adapter_connect_stream',
-                       spec_set=connection.Connection._adapter_connect_stream)
+    @mock.patch.object(
+        connection.AMQPConnection,
+        '_adapter_connect_stream',
+        spec_set=connection.AMQPConnection._adapter_connect_stream)
     def test_connection_blocked_sets_timer(self, connect_mock, call_later_mock):
         with mock.patch.object(ConstructibleConnection,
                                '_adapter_connect_stream'):
@@ -928,9 +931,10 @@ class ConnectionTests(unittest.TestCase):
         self.assertIsNotNone(conn._blocked_conn_timer)
 
     @mock.patch.object(ConstructibleConnection, '_adapter_call_later')
-    @mock.patch.object(connection.Connection,
-                       '_adapter_connect_stream',
-                       spec_set=connection.Connection._adapter_connect_stream)
+    @mock.patch.object(
+        connection.AMQPConnection,
+        '_adapter_connect_stream',
+        spec_set=connection.AMQPConnection._adapter_connect_stream)
     def test_blocked_connection_multiple_blocked_in_a_row_sets_timer_once(
             self, connect_mock, call_later_mock):
 
@@ -959,13 +963,14 @@ class ConnectionTests(unittest.TestCase):
         self.assertEqual(call_later_mock.call_count, 1)
         self.assertIs(conn._blocked_conn_timer, timer)
 
-    @mock.patch.object(connection.Connection, '_on_stream_terminated')
+    @mock.patch.object(connection.AMQPConnection, '_on_stream_terminated')
     @mock.patch.object(ConstructibleConnection,
                        '_adapter_call_later',
-                       spec_set=connection.Connection._adapter_call_later)
-    @mock.patch.object(connection.Connection,
-                       '_adapter_connect_stream',
-                       spec_set=connection.Connection._adapter_connect_stream)
+                       spec_set=connection.AMQPConnection._adapter_call_later)
+    @mock.patch.object(
+        connection.AMQPConnection,
+        '_adapter_connect_stream',
+        spec_set=connection.AMQPConnection._adapter_connect_stream)
     def test_blocked_connection_timeout_terminates_connection(
             self, connect_mock, call_later_mock, on_terminate_mock):
 
@@ -995,10 +1000,11 @@ class ConnectionTests(unittest.TestCase):
     @mock.patch.object(ConstructibleConnection, '_adapter_remove_timeout')
     @mock.patch.object(ConstructibleConnection,
                        '_adapter_call_later',
-                       spec_set=connection.Connection._adapter_call_later)
-    @mock.patch.object(connection.Connection,
-                       '_adapter_connect_stream',
-                       spec_set=connection.Connection._adapter_connect_stream)
+                       spec_set=connection.AMQPConnection._adapter_call_later)
+    @mock.patch.object(
+        connection.AMQPConnection,
+        '_adapter_connect_stream',
+        spec_set=connection.AMQPConnection._adapter_connect_stream)
     def test_blocked_connection_unblocked_removes_timer(self, connect_mock,
                                                         call_later_mock,
                                                         remove_timeout_mock):
@@ -1026,10 +1032,11 @@ class ConnectionTests(unittest.TestCase):
     @mock.patch.object(ConstructibleConnection, '_adapter_remove_timeout')
     @mock.patch.object(ConstructibleConnection,
                        '_adapter_call_later',
-                       spec_set=connection.Connection._adapter_call_later)
-    @mock.patch.object(connection.Connection,
-                       '_adapter_connect_stream',
-                       spec_set=connection.Connection._adapter_connect_stream)
+                       spec_set=connection.AMQPConnection._adapter_call_later)
+    @mock.patch.object(
+        connection.AMQPConnection,
+        '_adapter_connect_stream',
+        spec_set=connection.AMQPConnection._adapter_connect_stream)
     def test_blocked_connection_multiple_unblocked_in_a_row_removes_timer_once(
             self, connect_mock, call_later_mock, remove_timeout_mock):
 
@@ -1065,14 +1072,15 @@ class ConnectionTests(unittest.TestCase):
     @mock.patch.object(ConstructibleConnection, '_adapter_remove_timeout')
     @mock.patch.object(ConstructibleConnection,
                        '_adapter_call_later',
-                       spec_set=connection.Connection._adapter_call_later)
-    @mock.patch.object(connection.Connection,
-                       '_adapter_connect_stream',
-                       spec_set=connection.Connection._adapter_connect_stream)
+                       spec_set=connection.AMQPConnection._adapter_call_later)
+    @mock.patch.object(
+        connection.AMQPConnection,
+        '_adapter_connect_stream',
+        spec_set=connection.AMQPConnection._adapter_connect_stream)
     @mock.patch.object(
         ConstructibleConnection,
         '_adapter_disconnect_stream',
-        spec_set=connection.Connection._adapter_disconnect_stream)
+        spec_set=connection.AMQPConnection._adapter_disconnect_stream)
     def test_blocked_connection_on_stream_terminated_removes_timer(
             self, adapter_disconnect_mock, connect_mock, call_later_mock,
             remove_timeout_mock):
@@ -1099,7 +1107,7 @@ class ConnectionTests(unittest.TestCase):
 
     @mock.patch.object(ConstructibleConnection,
                        '_adapter_emit_data',
-                       spec_set=connection.Connection._adapter_emit_data)
+                       spec_set=connection.AMQPConnection._adapter_emit_data)
     def test_send_message_updates_frames_sent_and_bytes_sent(
             self, _adapter_emit_data):
         self.connection._body_max_length = 10000

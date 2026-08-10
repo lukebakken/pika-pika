@@ -6,7 +6,8 @@ import functools
 import logging
 from typing import Any, Callable, Type, Union, cast
 
-from pika import amqp_object, frame
+from pika import frame
+from pika._core import amqp_object
 
 _Prefix = Union[str, int]
 _Caller = object

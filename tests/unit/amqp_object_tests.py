@@ -1,6 +1,6 @@
 import unittest
 
-from pika import amqp_object
+from pika._core import amqp_object
 
 
 class AMQPObjectTests(unittest.TestCase):

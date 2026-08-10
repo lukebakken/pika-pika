@@ -13,7 +13,7 @@ Windows it fails against the pre-fix code and passes against the fix.
 
 import unittest
 
-from pika.adapters import select_connection
+from pika._core import select_connection
 
 
 class ReadInterruptHandlesEmptySocket(unittest.TestCase):

@@ -1,9 +1,10 @@
-"""Tests for pika.channel.ContentFrameAssembler."""
+"""Tests for pika._core.channel.ContentFrameAssembler."""
 
 import marshal
 import unittest
 
-from pika import channel, exceptions, frame, spec
+from pika import exceptions, frame, spec
+from pika._core import channel
 
 
 class ContentFrameAssemblerTests(unittest.TestCase):

@@ -6,7 +6,7 @@ from unittest import mock
 from unittest.mock import patch
 
 import pika
-import pika.channel
+import pika._core.channel
 import pika.exceptions
 from pika.adapters import blocking_connection
 from pika.adapters.utils import nbio_interface
@@ -245,12 +245,12 @@ class BlockingConnectionTests(unittest.TestCase):
                                return_value=impl_mock):
             connection = blocking_connection.BlockingConnection(None)
 
-        channel1_mock = mock.Mock(is_open=True,
-                                  close=mock.Mock(
-                                      side_effect=pika.exceptions.ChannelClosed(
-                                          -1, 'Just because'),
-                                      spec_set=pika.channel.Channel.close),
-                                  spec_set=blocking_connection.BlockingChannel)
+        channel1_mock = mock.Mock(
+            is_open=True,
+            close=mock.Mock(side_effect=pika.exceptions.ChannelClosed(
+                -1, 'Just because'),
+                            spec_set=pika._core.channel.AMQPChannel.close),
+            spec_set=blocking_connection.BlockingChannel)
 
         channel2_mock = mock.Mock(is_open=True,
                                   spec_set=blocking_connection.BlockingChannel)
@@ -259,13 +259,13 @@ class BlockingConnectionTests(unittest.TestCase):
             1:
                 mock.Mock(_get_cookie=mock.Mock(
                     return_value=channel1_mock,
-                    spec_set=pika.channel.Channel._get_cookie),
-                          spec_set=pika.channel.Channel),
+                    spec_set=pika._core.channel.AMQPChannel._get_cookie),
+                          spec_set=pika._core.channel.AMQPChannel),
             2:
                 mock.Mock(_get_cookie=mock.Mock(
                     return_value=channel2_mock,
-                    spec_set=pika.channel.Channel._get_cookie),
-                          spec_set=pika.channel.Channel)
+                    spec_set=pika._core.channel.AMQPChannel._get_cookie),
+                          spec_set=pika._core.channel.AMQPChannel)
         }
 
         with mock.patch.object(blocking_connection.BlockingConnection,

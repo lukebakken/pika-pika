@@ -1,9 +1,9 @@
-"""Test of `pika.diagnostic_utils`"""
+"""Test of `pika._core.diagnostic_utils`"""
 
 import logging
 import unittest
 
-from pika import diagnostic_utils
+from pika._core import diagnostic_utils
 
 
 class DiagnosticUtilsTest(unittest.TestCase):

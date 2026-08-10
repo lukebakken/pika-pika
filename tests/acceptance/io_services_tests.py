@@ -10,7 +10,7 @@ import threading
 import unittest
 from unittest import mock
 
-import pika._utils
+import pika._core._utils
 from pika.adapters.utils import nbio_interface
 from tests.misc.forward_server import ForwardServer
 from tests.stubs.io_services_test_stubs import IOServicesTestStubs
@@ -42,7 +42,7 @@ class AsyncServicesTestBase(unittest.TestCase):
 
         :returns: two-tuple of connected non-blocking sockets
         """
-        pair = pika._utils.nonblocking_socketpair()
+        pair = pika._core._utils.nonblocking_socketpair()
         self.addCleanup(pair[0].close)
         self.addCleanup(pair[1].close)
         return pair
@@ -65,7 +65,7 @@ class AsyncServicesTestBase(unittest.TestCase):
         """
         try:
             sock.connect(addr_pair)
-        except pika._utils.SOCKET_ERROR as error:
+        except pika._core._utils.SOCKET_ERROR as error:
             # EINPROGRESS for posix and EWOULDBLOCK for windows
             if error.errno not in (
                     errno.EINPROGRESS,
@@ -79,7 +79,7 @@ class AsyncServicesTestBase(unittest.TestCase):
         :return: socket address pair (ip-addr, port) that will refuse connection
 
         """
-        s1, s2 = pika._utils.nonblocking_socketpair()
+        s1, s2 = pika._core._utils.nonblocking_socketpair()
         s2.close()
         self.addCleanup(s1.close)
         return s1.getsockname()
@@ -111,7 +111,7 @@ class TestRunWithStopFromThreadsafeCallback(AsyncServicesTestBase,
         self.assertEqual(bucket, ['I was called'])
 
 
-@unittest.skipIf(pika._utils.ON_WINDOWS, 'Windows timing is too precise')
+@unittest.skipIf(pika._core._utils.ON_WINDOWS, 'Windows timing is too precise')
 class TestCallLaterDoesNotCallAheadOfTime(AsyncServicesTestBase,
                                           IOServicesTestStubs):
 
@@ -123,11 +123,11 @@ class TestCallLaterDoesNotCallAheadOfTime(AsyncServicesTestBase,
             loop.stop()
             bucket.append('I was here')
 
-        start_time = pika._utils.time_now()
+        start_time = pika._core._utils.time_now()
         loop.call_later(0.1, callback)
         loop.run()
-        self.assertGreaterEqual(round(pika._utils.time_now() - start_time, 3),
-                                0.1)
+        self.assertGreaterEqual(
+            round(pika._core._utils.time_now() - start_time, 3), 0.1)
         self.assertEqual(bucket, ['I was here'])
 
 
@@ -299,8 +299,8 @@ class TestSocketWatchersWhenFailsToConnect(SocketWatcherTestBase,
         # readable/writable a socket that failed to connect - it reflects the
         # failure only via exceptfds, which native ioloop's usually attribute to
         # the writable indication.
-        expected = self.WatcherActivity(readable=not pika._utils.ON_WINDOWS,
-                                        writable=True)
+        expected = self.WatcherActivity(
+            readable=not pika._core._utils.ON_WINDOWS, writable=True)
         self._check_socket_watchers_fired(sock, expected)
 
 
@@ -381,8 +381,8 @@ class TestSocketWatchersAfterLocalPeerShutsRead(SocketWatcherTestBase,
 
         # NOTE: Unlike POSIX, Windows select doesn't indicate as readable socket
         #  that was shut down locally with SHUT_RD.
-        expected = self.WatcherActivity(readable=not pika._utils.ON_WINDOWS,
-                                        writable=True)
+        expected = self.WatcherActivity(
+            readable=not pika._core._utils.ON_WINDOWS, writable=True)
         self._check_socket_watchers_fired(s1, expected)
 
 
@@ -406,8 +406,8 @@ class TestSocketWatchersAfterLocalPeerShutsReadWrite(SocketWatcherTestBase,
 
         # NOTE: Unlike POSIX, Windows select doesn't indicate as readable socket
         #  that was shut down locally with SHUT_RDWR.
-        expected = self.WatcherActivity(readable=not pika._utils.ON_WINDOWS,
-                                        writable=True)
+        expected = self.WatcherActivity(
+            readable=not pika._core._utils.ON_WINDOWS, writable=True)
         self._check_socket_watchers_fired(s1, expected)
 
 
@@ -493,7 +493,7 @@ class TestGetaddrinfoLocalhostPort80(AsyncServicesTestBase,
         for family, socktype, proto, canonname, sockaddr in result:
             self.assertIn(family, [socket.AF_INET, socket.AF_INET6])
             self.assertEqual(socktype, socket.SOCK_STREAM)
-            if pika._utils.ON_WINDOWS:
+            if pika._core._utils.ON_WINDOWS:
                 self.assertEqual(proto, socket.IPPROTO_IP)
             else:
                 self.assertEqual(proto, socket.IPPROTO_TCP)
@@ -617,8 +617,8 @@ class SocketConnectorTestBase(AsyncServicesTestBase):
         # Create listener
         lsock = socket.socket(family, socket.SOCK_STREAM)
         self.addCleanup(lsock.close)
-        ipaddr = (pika._utils._LOCALHOST_V6
-                  if family == socket.AF_INET6 else pika._utils._LOCALHOST)
+        ipaddr = (pika._core._utils._LOCALHOST_V6 if family == socket.AF_INET6
+                  else pika._core._utils._LOCALHOST)
         lsock.bind((ipaddr, 0))
         lsock.listen(1)
         # NOTE: don't even need to accept for this test, connection completes
@@ -980,7 +980,7 @@ class TestStreamConnectorBrokenPipe(StreamingTestBase, IOServicesTestStubs):
             0]  # type: TestStreamConnectorTxRxStreamProtocol
 
         error = my_proto.connection_lost_error_bucket[0]
-        self.assertIsInstance(error, pika._utils.SOCKET_ERROR)
+        self.assertIsInstance(error, pika._core._utils.SOCKET_ERROR)
         # NOTE: we occasionally see EPROTOTYPE on OSX
         self.assertIn(error.errno,
                       [errno.EPIPE, errno.ECONNRESET, errno.EPROTOTYPE])

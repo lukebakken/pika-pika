@@ -12,9 +12,9 @@ from datetime import datetime, timezone
 from unittest import mock
 
 import pika
-import pika._utils
+import pika._core._utils
 from pika import adapters
-from pika.adapters import select_connection
+from pika._core import select_connection
 from pika.exchange_type import ExchangeType
 from tests.wrappers.threaded_test_wrapper import create_run_in_thread_decorator
 
@@ -317,7 +317,7 @@ class AsyncAdapters:
         with mock.patch.multiple(select_connection, SELECT_TYPE='kqueue'):
             self.start(adapters.SelectConnection, select_connection.IOLoop)
 
-    @unittest.skipIf(pika._utils.ON_WINDOWS, 'Windows not supported')
+    @unittest.skipIf(pika._core._utils.ON_WINDOWS, 'Windows not supported')
     @run_test_in_thread_with_timeout
     def test_with_gevent(self):
         """GeventConnection."""

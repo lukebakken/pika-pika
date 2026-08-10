@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Sequence
 
-from pika._utils import override
+from pika._core._utils import override
 
 if TYPE_CHECKING:
     from typing import Protocol

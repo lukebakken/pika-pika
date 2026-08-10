@@ -13,7 +13,7 @@ from typing import ClassVar
 
 import tornado.ioloop
 
-from pika.adapters import select_connection
+from pika._core import select_connection
 from tests.base.asyncio_loop import new_pika_asyncio_loop
 from tests.stubs.io_services_test_stubs import IOServicesTestStubs
 
@@ -50,9 +50,9 @@ class TestStartCalledFromOtherThreadAndWithVaryingNativeLoops(
         cls._native_loop_classes = set()
 
     # AssertionError: Expected these 3 native I/O loop classes from IOServicesTestStubs:
-    # {<class 'asyncio.windows_events.ProactorEventLoop'>, <class 'tornado.platform.asyncio.AsyncIOLoop'>, <class 'pika.adapters.select_connection.IOLoop'>}
+    # {<class 'asyncio.windows_events.ProactorEventLoop'>, <class 'tornado.platform.asyncio.AsyncIOLoop'>, <class 'pika._core.select_connection.IOLoop'>}
     # but got these 3:
-    # {<class 'asyncio.windows_events._WindowsSelectorEventLoop'>, <class 'tornado.platform.asyncio.AsyncIOLoop'>, <class 'pika.adapters.select_connection.IOLoop'>}
+    # {<class 'asyncio.windows_events._WindowsSelectorEventLoop'>, <class 'tornado.platform.asyncio.AsyncIOLoop'>, <class 'pika._core.select_connection.IOLoop'>}
     @classmethod
     def tearDownClass(cls):
         # Now check against what was made available to us by

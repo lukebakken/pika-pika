@@ -6,8 +6,9 @@ import logging
 import struct
 from typing import Generic, TypeVar
 
-from pika import amqp_object, exceptions, spec
-from pika._utils import override
+from pika import exceptions, spec
+from pika._core import amqp_object
+from pika._core._utils import override
 
 LOGGER = logging.getLogger(__name__)
 
