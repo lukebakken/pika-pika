@@ -18,7 +18,7 @@ parameters = pika.ConnectionParameters('rabbit-server1',
                                        credentials)
 
 ```
-::: pika.connection.ConnectionParameters
+::: pika.parameters.ConnectionParameters
     options:
       members: true
       inherited_members: true
@@ -37,7 +37,7 @@ import pika
 parameters = pika.URLParameters('amqp://guest:guest@rabbit-server1:5672/%2F')
 
 ```
-::: pika.connection.URLParameters
+::: pika.parameters.URLParameters
     options:
       members: true
       inherited_members: true

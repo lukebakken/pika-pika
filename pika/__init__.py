@@ -10,9 +10,9 @@ logging.getLogger(__name__).addHandler(logging.NullHandler())
 from pika import adapters, frame, spec
 from pika.adapters import BaseConnection, BlockingConnection, SelectConnection, ThreadSafeConnection
 from pika.adapters.utils.connection_workflow import AMQPConnectionWorkflow
-from pika.connection import ConnectionParameters, SSLOptions, URLParameters
 from pika.credentials import PlainCredentials
 from pika.delivery_mode import DeliveryMode
+from pika.parameters import ConnectionParameters, SSLOptions, URLParameters
 from pika.spec import BasicProperties
 
 __all__ = [

@@ -1,5 +1,5 @@
-"""Test `pika.connection.Parameters`, `pika.connection.ConnectionParameters`, and
-`pika.connection.URLParameters`
+"""Test `pika.parameters.Parameters`, `pika.parameters.ConnectionParameters`, and
+`pika.parameters.URLParameters`
 """
 
 import copy
@@ -10,15 +10,15 @@ from urllib.parse import quote as url_quote
 from urllib.parse import urlencode
 
 import pika
-from pika import channel, connection, credentials, spec
+from pika import channel, credentials, parameters, spec
 
-# Unordered sequence of connection.Parameters's property getters
+# Unordered sequence of parameters.Parameters's property getters
 _ALL_PUBLIC_PARAMETERS_PROPERTIES = tuple(
-    attr for attr in vars(connection.Parameters) if not attr.startswith('_') and
-    issubclass(type(getattr(connection.Parameters, attr)), property))
+    attr for attr in vars(parameters.Parameters) if not attr.startswith('_') and
+    issubclass(type(getattr(parameters.Parameters, attr)), property))
 
 
-class ChildParameters(connection.Parameters):
+class ChildParameters(parameters.Parameters):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -39,10 +39,10 @@ class ParametersTestsBase(unittest.TestCase):
     def get_default_properties(self):
         """
         :returns: a dict of expected public property names and default values
-            for `pika.connection.Parameters`
+            for `pika.parameters.Parameters`
 
         """
-        kls = connection.Parameters
+        kls = parameters.Parameters
         defaults = {
             'blocked_connection_timeout':
                 kls.DEFAULT_BLOCKED_CONNECTION_TIMEOUT,
@@ -89,7 +89,7 @@ class ParametersTestsBase(unittest.TestCase):
         """
         Assert that the given parameters object has the default parameter values.
 
-        :param pika.connection.Parameters params: Verify that the given params instance has all
+        :param pika.parameters.Parameters params: Verify that the given params instance has all
             default property values
         """
         for name, expected_value in self.get_default_properties().items():
@@ -103,8 +103,8 @@ class ParametersTestsBase(unittest.TestCase):
 class ParametersTests(ParametersTestsBase):
 
     def test_eq(self):
-        params_1 = connection.Parameters()
-        params_2 = connection.Parameters()
+        params_1 = parameters.Parameters()
+        params_2 = parameters.Parameters()
         params_3 = ChildParameters()
 
         self.assertEqual(params_1, params_2)
@@ -141,8 +141,8 @@ class ParametersTests(ParametersTestsBase):
         self.assertEqual(Foreign() == params_1, 'foobar')
 
     def test_ne(self):
-        params_1 = connection.Parameters()
-        params_2 = connection.Parameters()
+        params_1 = parameters.Parameters()
+        params_2 = parameters.Parameters()
         params_3 = ChildParameters()
 
         params_1.host = 'localhost'
@@ -185,10 +185,10 @@ class ParametersTests(ParametersTestsBase):
         self.assertEqual(Foreign() != params_1, 'foobar')
 
     def test_default_property_values(self):
-        self.assert_default_parameter_values(connection.Parameters())
+        self.assert_default_parameter_values(parameters.Parameters())
 
     def test_blocked_connection_timeout(self):
-        params = connection.Parameters()
+        params = parameters.Parameters()
 
         params.blocked_connection_timeout = 60
         self.assertEqual(params.blocked_connection_timeout, 60)
@@ -206,7 +206,7 @@ class ParametersTests(ParametersTestsBase):
             params.blocked_connection_timeout = -40
 
     def test_channel_max(self):
-        params = connection.Parameters()
+        params = parameters.Parameters()
 
         params.channel_max = 1
         self.assertEqual(params.channel_max, 1)
@@ -230,7 +230,7 @@ class ParametersTests(ParametersTestsBase):
             params.channel_max = channel.MAX_CHANNELS + 1
 
     def test_connection_attempts(self):
-        params = connection.Parameters()
+        params = parameters.Parameters()
 
         params.connection_attempts = 1
         self.assertEqual(params.connection_attempts, 1)
@@ -251,7 +251,7 @@ class ParametersTests(ParametersTestsBase):
             params.connection_attempts = -40
 
     def test_credentials(self):
-        params = connection.Parameters()
+        params = parameters.Parameters()
 
         plain_cred = credentials.PlainCredentials('very', 'reliable')
         params.credentials = plain_cred
@@ -262,13 +262,13 @@ class ParametersTests(ParametersTestsBase):
         self.assertEqual(params.credentials, ext_cred)
 
         with self.assertRaises(TypeError):
-            params.credentials = connection.Parameters()
+            params.credentials = parameters.Parameters()
 
         with self.assertRaises(TypeError):
             params.credentials = repr(plain_cred)
 
     def test_frame_max(self):
-        params = connection.Parameters()
+        params = parameters.Parameters()
 
         params.frame_max = spec.FRAME_MIN_SIZE
         self.assertEqual(params.frame_max, spec.FRAME_MIN_SIZE)
@@ -295,7 +295,7 @@ class ParametersTests(ParametersTestsBase):
             params.frame_max = spec.FRAME_MAX_SIZE + 1
 
     def test_heartbeat(self):
-        params = connection.Parameters()
+        params = parameters.Parameters()
 
         params.heartbeat = None
         self.assertIsNone(params.heartbeat)
@@ -323,7 +323,7 @@ class ParametersTests(ParametersTestsBase):
         self.assertIs(params.heartbeat, heartbeat_callback)
 
     def test_host(self):
-        params = connection.Parameters()
+        params = parameters.Parameters()
 
         params.host = '127.0.0.1'
         self.assertEqual(params.host, '127.0.0.1')
@@ -341,7 +341,7 @@ class ParametersTests(ParametersTestsBase):
             params.host = ('127.0.0.1', 5672)
 
     def test_locale(self):
-        params = connection.Parameters()
+        params = parameters.Parameters()
 
         params.locale = 'en_UK'
         self.assertEqual(params.locale, 'en_UK')
@@ -353,7 +353,7 @@ class ParametersTests(ParametersTestsBase):
             params.locale = 127
 
     def test_port(self):
-        params = connection.Parameters()
+        params = parameters.Parameters()
 
         params.port = 0
         self.assertEqual(params.port, 0)
@@ -374,7 +374,7 @@ class ParametersTests(ParametersTestsBase):
             params.port = []
 
     def test_retry_delay(self):
-        params = connection.Parameters()
+        params = parameters.Parameters()
 
         params.retry_delay = 0
         self.assertEqual(params.retry_delay, 0)
@@ -386,7 +386,7 @@ class ParametersTests(ParametersTestsBase):
             params.retry_delay = '0.1'
 
     def test_socket_timeout(self):
-        params = connection.Parameters()
+        params = parameters.Parameters()
 
         params.socket_timeout = 1
         self.assertEqual(params.socket_timeout, 1)
@@ -410,9 +410,9 @@ class ParametersTests(ParametersTestsBase):
             params.socket_timeout = 0
 
     def test_ssl_options(self):
-        params = connection.Parameters()
+        params = parameters.Parameters()
 
-        ssl_options = connection.SSLOptions(ssl.create_default_context())
+        ssl_options = parameters.SSLOptions(ssl.create_default_context())
         params.ssl_options = ssl_options
         self.assertIs(params.ssl_options, ssl_options)
 
@@ -423,7 +423,7 @@ class ParametersTests(ParametersTestsBase):
             params.ssl_options = {}
 
     def test_virtual_host(self):
-        params = connection.Parameters()
+        params = parameters.Parameters()
 
         params.virtual_host = '/'
         self.assertEqual(params.virtual_host, '/')
@@ -438,7 +438,7 @@ class ParametersTests(ParametersTestsBase):
             params.virtual_host = 99
 
     def test_tcp_options(self):
-        params = connection.Parameters()
+        params = parameters.Parameters()
 
         opt = {
             'TCP_KEEPIDLE': 60,
@@ -459,41 +459,41 @@ class ParametersTests(ParametersTestsBase):
 class ConnectionParametersTests(ParametersTestsBase):
 
     def test_default_property_values(self):
-        self.assert_default_parameter_values(connection.ConnectionParameters())
+        self.assert_default_parameter_values(parameters.ConnectionParameters())
 
     def test_explicit_ssl_with_default_port(self):
-        params = connection.ConnectionParameters(
-            ssl_options=connection.SSLOptions(ssl.create_default_context()))
+        params = parameters.ConnectionParameters(
+            ssl_options=parameters.SSLOptions(ssl.create_default_context()))
 
         self.assertIsNotNone(params.ssl_options)
         self.assertEqual(params.port, params.DEFAULT_SSL_PORT)
 
     def test_explicit_ssl_with_explict_port(self):
-        params = connection.ConnectionParameters(
-            ssl_options=connection.SSLOptions(ssl.create_default_context()),
+        params = parameters.ConnectionParameters(
+            ssl_options=parameters.SSLOptions(ssl.create_default_context()),
             port=99)
 
         self.assertIsNotNone(params.ssl_options)
         self.assertEqual(params.port, 99)
 
     def test_explicit_non_ssl_with_default_port(self):
-        params = connection.ConnectionParameters(ssl_options=None)
+        params = parameters.ConnectionParameters(ssl_options=None)
 
         self.assertIsNone(params.ssl_options)
         self.assertEqual(params.port, params.DEFAULT_PORT)
 
     def test_explicit_non_ssl_with_explict_port(self):
-        params = connection.ConnectionParameters(ssl_options=None, port=100)
+        params = parameters.ConnectionParameters(ssl_options=None, port=100)
 
         self.assertIsNone(params.ssl_options)
         self.assertEqual(params.port, 100)
 
     def test_exlicit_none_stack_timeout(self):
-        params = connection.ConnectionParameters(stack_timeout=None)
+        params = parameters.ConnectionParameters(stack_timeout=None)
         self.assertIsNone(params.stack_timeout)
 
     def test_exlicit_none_socket_timeout(self):
-        params = connection.ConnectionParameters(socket_timeout=None)
+        params = parameters.ConnectionParameters(socket_timeout=None)
         self.assertIsNone(params.socket_timeout)
 
     def test_good_connection_parameters(self):
@@ -520,7 +520,7 @@ class ConnectionParametersTests(ParametersTestsBase):
                 'TCP_USER_TIMEOUT': 1000
             }
         }
-        params = connection.ConnectionParameters(**kwargs)
+        params = parameters.ConnectionParameters(**kwargs)
 
         # Verify
 
@@ -579,7 +579,7 @@ class ConnectionParametersTests(ParametersTestsBase):
 
             bkwargs[bad_field] = bad_value
 
-            self.assertRaises(TypeError, connection.ConnectionParameters,
+            self.assertRaises(TypeError, parameters.ConnectionParameters,
                               **bkwargs)
 
     def test_parameters_accepts_plain_string_virtualhost(self):
@@ -602,34 +602,34 @@ class ConnectionParametersTests(ParametersTestsBase):
 class URLParametersTests(ParametersTestsBase):
 
     def test_default_property_values(self):
-        params = connection.URLParameters('')
+        params = parameters.URLParameters('')
         self.assert_default_parameter_values(params)
 
         self.assertIsNone(params.ssl_options)
         self.assertEqual(params.port, params.DEFAULT_PORT)
 
     def test_no_ssl(self):
-        params = connection.URLParameters('http://')
+        params = parameters.URLParameters('http://')
         self.assertIsNone(params.ssl_options)
         self.assertEqual(params.port, params.DEFAULT_PORT)
         self.assert_default_parameter_values(params)
 
-        params = connection.URLParameters('amqp://')
+        params = parameters.URLParameters('amqp://')
         self.assertIsNone(params.ssl_options)
         self.assertEqual(params.port, params.DEFAULT_PORT)
         self.assert_default_parameter_values(params)
 
     def test_ssl(self):
-        params = connection.URLParameters('https://')
+        params = parameters.URLParameters('https://')
         self.assertIsNotNone(params.ssl_options)
         self.assertEqual(params.port, params.DEFAULT_SSL_PORT)
 
-        params = connection.URLParameters('amqps://')
+        params = parameters.URLParameters('amqps://')
         self.assertIsNotNone(params.ssl_options)
         self.assertEqual(params.port, params.DEFAULT_SSL_PORT)
 
         # Make sure the other parameters unrelated to SSL have default values
-        params = connection.URLParameters('amqps://')
+        params = parameters.URLParameters('amqps://')
         params.ssl_options = None
         params.port = params.DEFAULT_PORT
         self.assert_default_parameter_values(params)
@@ -638,10 +638,10 @@ class URLParametersTests(ParametersTestsBase):
         """
         This test does not set protocol_version option in ssl_options.
 
-        Instead, it relies on connection.URLParameters class to setup the default, and then it
+        Instead, it relies on parameters.URLParameters class to setup the default, and then it
         asserts the protocol is what we expected (auto or TLSv1_2)
         """
-        params = connection.URLParameters(
+        params = parameters.URLParameters(
             'amqps://foo.bar/some-vhost?ssl_options=%7B%27ca_certs%27%3A%27tests%2Fcerts%2Fca_certificate.pem%27%7D'
         )
         assert params.ssl_options is not None
@@ -651,7 +651,7 @@ class URLParametersTests(ParametersTestsBase):
             msg='Expected to fallback to a secure protocol')
 
     def test_no_url_scheme_defaults_to_plaintext(self):
-        params = connection.URLParameters('//')
+        params = parameters.URLParameters('//')
         self.assertIsNone(params.ssl_options)
         self.assertEqual(params.port, params.DEFAULT_PORT)
 
@@ -681,7 +681,7 @@ class URLParametersTests(ParametersTestsBase):
             query_string,
         ))
 
-        params = connection.URLParameters(test_url)
+        params = parameters.URLParameters(test_url)
 
         # check all value from query string
 
