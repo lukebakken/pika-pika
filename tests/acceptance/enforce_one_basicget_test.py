@@ -1,8 +1,8 @@
 import unittest
 from unittest.mock import MagicMock
 
-from pika.channel import Channel
-from pika.connection import Connection
+from pika._core.channel import AMQPChannel
+from pika._core.connection import AMQPConnection
 from pika.exceptions import DuplicateGetOkCallback
 from pika.frame import Header, Method
 
@@ -10,8 +10,8 @@ from pika.frame import Header, Method
 class OnlyOneBasicGetTestCase(unittest.TestCase):
 
     def setUp(self):
-        self.channel = Channel(MagicMock(Connection)(), 0, None)
-        self.channel._state = Channel.OPEN
+        self.channel = AMQPChannel(MagicMock(AMQPConnection)(), 0, None)
+        self.channel._state = AMQPChannel.OPEN
         self.callback = MagicMock()
 
     def test_two_basic_get_with_callback(self):

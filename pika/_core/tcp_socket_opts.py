@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import socket
 
-import pika._utils
+import pika._core._utils
 
 LOGGER = logging.getLogger(__name__)
 
@@ -14,7 +14,8 @@ try:
     _SUPPORTED_TCP_OPTIONS['TCP_USER_TIMEOUT'] = getattr(  # noqa: B009
         socket, 'TCP_USER_TIMEOUT')
 except AttributeError:
-    if pika._utils.LINUX_VERSION and pika._utils.LINUX_VERSION >= (2, 6, 37):
+    if pika._core._utils.LINUX_VERSION and pika._core._utils.LINUX_VERSION >= (
+            2, 6, 37):
         # this is not the timeout value, but the number corresponding
         # to the constant in tcp.h
         # https://github.com/torvalds/linux/blob/master/include/uapi/linux/tcp.h#
@@ -52,6 +53,6 @@ def set_sock_opts(tcp_options: dict[str, int] | None,
     for key, value in tcp_options.items():
         option = _SUPPORTED_TCP_OPTIONS.get(key)
         if option:
-            sock.setsockopt(pika._utils.SOL_TCP, option, value)
+            sock.setsockopt(pika._core._utils.SOL_TCP, option, value)
         else:
             LOGGER.warning('Unsupported TCP option %s:%s', key, value)

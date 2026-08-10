@@ -10,7 +10,8 @@ from urllib.parse import quote as url_quote
 from urllib.parse import urlencode
 
 import pika
-from pika import channel, credentials, parameters, spec
+from pika import credentials, parameters, spec
+from pika._core import channel
 
 # Unordered sequence of parameters.Parameters's property getters
 _ALL_PUBLIC_PARAMETERS_PROPERTIES = tuple(

@@ -6,9 +6,9 @@ Asynchronous adapter without third-party dependencies.
 
 ## Class Reference
 
-::: pika.adapters.select_connection
+::: pika._core.select_connection
 
-::: pika.adapters.select_connection.SelectConnection
+::: pika._core.select_connection.SelectConnection
     options:
       members: true
       inherited_members: true

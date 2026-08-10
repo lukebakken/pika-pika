@@ -7,7 +7,7 @@ import pika
 import pika.exceptions
 import pika.frame
 from pika import spec
-from pika._utils import as_bytes, time_now
+from pika._core._utils import as_bytes, time_now
 from pika.adapters.utils import connection_workflow
 from pika.exchange_type import ExchangeType
 from tests.base import async_test_base

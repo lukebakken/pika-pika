@@ -4,7 +4,7 @@ methods.
 
 from __future__ import annotations
 
-from pika._utils import override
+from pika._core._utils import override
 
 
 class AMQPObject:

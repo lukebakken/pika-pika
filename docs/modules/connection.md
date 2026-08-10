@@ -1,6 +1,6 @@
-## Connection
-The `Connection` class implements the base behavior that all connection adapters extend.
+## AMQPConnection
+The `AMQPConnection` class implements the base behavior that all connection adapters extend.
 
-::: pika.connection.Connection
+::: pika._core.connection.AMQPConnection
     options:
       members: true

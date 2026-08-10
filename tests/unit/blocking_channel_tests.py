@@ -4,14 +4,14 @@ import unittest
 from collections import deque
 from unittest import mock
 
-from pika import channel
+from pika._core import channel
 from pika.adapters import blocking_connection
 
 BLOCKING_CHANNEL = 'pika.adapters.blocking_connection.BlockingChannel'
 BLOCKING_CONNECTION = 'pika.adapters.blocking_connection.BlockingConnection'
 
 
-class ChannelTemplate(channel.Channel):
+class ChannelTemplate(channel.AMQPChannel):
     channel_number = 1
 
 

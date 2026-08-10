@@ -2,7 +2,7 @@
 Connection parameter classes.
 
 Defines the user-facing parameter objects (:class:`Parameters`, :class:`ConnectionParameters`,
-:class:`URLParameters`) and :class:`SSLOptions`, extracted from :mod:`pika.connection` so that
+:class:`URLParameters`) and :class:`SSLOptions`, extracted from :mod:`pika._core.connection` so that
 module can host the public connection class.
 """
 
@@ -28,13 +28,14 @@ from urllib.parse import parse_qs as url_parse_qs
 from urllib.parse import unquote as url_unquote
 from urllib.parse import urlparse
 
-import pika.channel
+import pika._core.channel
 import pika.credentials
-from pika import spec, validators
-from pika._utils import override
+from pika import spec
+from pika._core import validators
+from pika._core._utils import override
 
 if TYPE_CHECKING:
-    from pika.connection import Connection
+    from pika._core.connection import AMQPConnection
 
 LOGGER = logging.getLogger(__name__)
 
@@ -67,7 +68,7 @@ class Parameters:
     DEFAULT_PASSWORD = 'guest'
 
     DEFAULT_BLOCKED_CONNECTION_TIMEOUT = None
-    DEFAULT_CHANNEL_MAX = pika.channel.MAX_CHANNELS
+    DEFAULT_CHANNEL_MAX = pika._core.channel.MAX_CHANNELS
     DEFAULT_CLIENT_PROPERTIES = None
     DEFAULT_CREDENTIALS = pika.credentials.PlainCredentials(
         DEFAULT_USERNAME, DEFAULT_PASSWORD)
@@ -99,7 +100,8 @@ class Parameters:
             pika.credentials.PlainCredentials |
             pika.credentials.ExternalCredentials) = self.DEFAULT_CREDENTIALS
         self._frame_max: int = 0
-        self._heartbeat: int | Callable[[Connection, float], int] | None = None
+        self._heartbeat: int | Callable[[AMQPConnection, float],
+                                        int] | None = None
         self._host: str = ''
         self._locale: str = ''
         self._port: int = 0
@@ -193,9 +195,9 @@ class Parameters:
         """
         if not isinstance(value, numbers.Integral):
             raise TypeError(f'channel_max must be an int, but got {value!r}')
-        if value < 1 or value > pika.channel.MAX_CHANNELS:
+        if value < 1 or value > pika._core.channel.MAX_CHANNELS:
             raise ValueError(
-                f'channel_max must be <= {pika.channel.MAX_CHANNELS} and > 0, but got {value!r}'
+                f'channel_max must be <= {pika._core.channel.MAX_CHANNELS} and > 0, but got {value!r}'
             )
         self._channel_max = value
 
@@ -306,7 +308,7 @@ class Parameters:
         self._frame_max = value
 
     @property
-    def heartbeat(self) -> int | Callable[[Connection, float], int] | None:
+    def heartbeat(self) -> int | Callable[[AMQPConnection, float], int] | None:
         """
         :returns: AMQP connection heartbeat timeout value for negotiation during
             connection tuning or callable which is invoked during connection tuning.
@@ -319,7 +321,7 @@ class Parameters:
     @heartbeat.setter
     def heartbeat(
             self,
-            value: int | Callable[[Connection, float], int] | None) -> None:
+            value: int | Callable[[AMQPConnection, float], int] | None) -> None:
         """
         :param value: Controls AMQP heartbeat timeout negotiation
             during connection tuning. An integer value always overrides the value
@@ -551,7 +553,8 @@ class ConnectionParameters(Parameters):
                      pika.credentials.ExternalCredentials)] = _DEFAULT,
                  channel_max: DefaultT[int] = _DEFAULT,
                  frame_max: DefaultT[int] = _DEFAULT,
-                 heartbeat: DefaultT[int | Callable[[Connection, float], int] |
+                 heartbeat: DefaultT[int |
+                                     Callable[[AMQPConnection, float], int] |
                                      None] = _DEFAULT,
                  ssl_options: DefaultT[SSLOptions | None] = _DEFAULT,
                  connection_attempts: DefaultT[int] = _DEFAULT,
@@ -630,7 +633,8 @@ class ConnectionParameters(Parameters):
 
         if heartbeat is not self._DEFAULT:
             self.heartbeat = cast(
-                'int | Callable[[Connection, float], int] | None', heartbeat)
+                'int | Callable[[AMQPConnection, float], int] | None',
+                heartbeat)
 
         if host is not self._DEFAULT:
             self.host = cast(str, host)

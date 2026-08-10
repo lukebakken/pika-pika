@@ -16,9 +16,9 @@ from __future__ import annotations
 import struct
 from typing import Any
 
-from pika import amqp_object
-from pika import data
-from pika._utils import override
+from pika._core import amqp_object
+from pika._core import data
+from pika._core._utils import override
 
 # Pre-compiled struct formats, one per fixed-size AMQP domain.
 _PACK_OCTET = struct.Struct('B')
@@ -28,7 +28,7 @@ _PACK_LONGLONG = struct.Struct('>Q')
 
 # Single-byte `bytes` objects indexed by value 0 through 255, for the
 # bit-field buffers below, which OR several bit flags into one octet.
-# Reuse the table built in `pika.data` rather than constructing an
+# Reuse the table built in `pika._core.data` rather than constructing an
 # identical one here.
 _OCTET_BYTES = data._OCTET_BYTES
 

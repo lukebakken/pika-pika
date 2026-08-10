@@ -68,7 +68,7 @@ class TornadoConnectionDeprecationTests(DeprecationTestCase):
 
     def test_init_emits_deprecation_warning(self):
         from pika.adapters import tornado_connection
-        with mock.patch('pika.adapters.base_connection.BaseConnection.__init__',
+        with mock.patch('pika._core.base_connection.BaseConnection.__init__',
                         return_value=None):
             self.assert_deprecated('TornadoConnection',
                                    tornado_connection.TornadoConnection)
@@ -81,7 +81,7 @@ class GeventConnectionDeprecationTests(DeprecationTestCase):
 
     def test_init_emits_deprecation_warning(self):
         from pika.adapters import gevent_connection
-        with mock.patch('pika.adapters.base_connection.BaseConnection.__init__',
+        with mock.patch('pika._core.base_connection.BaseConnection.__init__',
                         return_value=None):
             self.assert_deprecated('GeventConnection',
                                    gevent_connection.GeventConnection)

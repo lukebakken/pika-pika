@@ -17,22 +17,23 @@ from typing import (
     cast,
 )
 
-import pika.callback
-import pika.channel
-import pika.heartbeat
-from pika import exceptions, frame, spec, validators
+import pika._core.callback
+import pika._core.channel
+import pika._core.heartbeat
+from pika import exceptions, frame, spec
+from pika._core import validators
 from pika.parameters import ConnectionParameters, Parameters
 
 if TYPE_CHECKING:
-    from pika import amqp_object
-    from pika.channel import Channel
+    from pika._core import amqp_object
+    from pika._core.channel import AMQPChannel
 
 PRODUCT = 'Pika Python Client Library'
 
 LOGGER = logging.getLogger(__name__)
 
 
-class Connection(abc.ABC):
+class AMQPConnection(abc.ABC):
     """
     This is the core class that implements communication with RabbitMQ.
 
@@ -63,10 +64,11 @@ class Connection(abc.ABC):
 
     def __init__(self,
                  parameters: Parameters | None = None,
-                 on_open_callback: Callable[[Connection], Any] | None = None,
-                 on_open_error_callback: Callable[[Connection, Exception],
+                 on_open_callback: Callable[[AMQPConnection], Any] |
+                 None = None,
+                 on_open_error_callback: Callable[[AMQPConnection, Exception],
                                                   Any] | None = None,
-                 on_close_callback: Callable[[Connection, Exception], Any] |
+                 on_close_callback: Callable[[AMQPConnection, Exception], Any] |
                  None = None,
                  internal_connection_workflow: bool = True) -> None:
         """
@@ -109,7 +111,7 @@ class Connection(abc.ABC):
         # Used to hold timer if configured for Connection.Blocked timeout
         self._blocked_conn_timer: object = None
 
-        self._heartbeat_checker: pika.heartbeat.HeartbeatChecker | None = None
+        self._heartbeat_checker: pika._core.heartbeat.HeartbeatChecker | None = None
 
         # Set our configuration options
         if parameters is not None:
@@ -128,7 +130,7 @@ class Connection(abc.ABC):
         self._internal_connection_workflow = internal_connection_workflow
 
         # Define our callback dictionary
-        self.callbacks = pika.callback.CallbackManager()
+        self.callbacks = pika._core.callback.CallbackManager()
 
         # Attributes that will be properly initialized by _init_connection_state
         # and/or during connection handshake.
@@ -140,7 +142,7 @@ class Connection(abc.ABC):
         self.known_hosts: str | bytes | None = None
         self._frame_buffer: bytearray = bytearray()
         self._processing_frame_buffer: bool = False
-        self._channels: dict[int, Channel] = {}
+        self._channels: dict[int, AMQPChannel] = {}
 
         self._init_connection_state()
 
@@ -225,7 +227,7 @@ class Connection(abc.ABC):
                 self._on_connection_unblocked)
 
     def add_on_close_callback(
-            self, callback: Callable[[Connection, Exception], Any]) -> None:
+            self, callback: Callable[[AMQPConnection, Exception], Any]) -> None:
         """
         Add a callback notification when the connection has closed.
 
@@ -235,15 +237,14 @@ class Connection(abc.ABC):
         closure/failure.
 
         :param callback: Callback to call on close, having the signature:
-            callback(pika.connection.Connection, exception)
+            callback(pika._core.connection.AMQPConnection, exception)
         """
         validators.require_callback(callback)
         self.callbacks.add(0, self.ON_CONNECTION_CLOSED, callback, False)
 
     def add_on_connection_blocked_callback(
-        self,
-        callback: Callable[[Connection, frame.Method[spec.Connection.Blocked]],
-                           Any]
+        self, callback: Callable[
+            [AMQPConnection, frame.Method[spec.Connection.Blocked]], Any]
     ) -> None:
         """RabbitMQ AMQP extension - Add a callback to be notified when the
         connection gets blocked (`Connection.Blocked` received from RabbitMQ)
@@ -271,7 +272,7 @@ class Connection(abc.ABC):
 
     def add_on_connection_unblocked_callback(
         self, callback: Callable[
-            [Connection, frame.Method[spec.Connection.Unblocked]], Any]
+            [AMQPConnection, frame.Method[spec.Connection.Unblocked]], Any]
     ) -> None:
         """RabbitMQ AMQP extension - Add a callback to be notified when the
         connection gets unblocked (`Connection.Unblocked` frame is received from
@@ -289,7 +290,7 @@ class Connection(abc.ABC):
                            functools.partial(callback, self),
                            one_shot=False)
 
-    def add_on_open_callback(self, callback: Callable[[Connection],
+    def add_on_open_callback(self, callback: Callable[[AMQPConnection],
                                                       Any]) -> None:
         """
         Add a callback notification when the connection has opened.
@@ -303,7 +304,8 @@ class Connection(abc.ABC):
 
     def add_on_open_error_callback(self,
                                    callback: Callable[
-                                       [Connection, BaseException | None], Any],
+                                       [AMQPConnection, BaseException | None],
+                                       Any],
                                    remove_default: bool = True) -> None:
         """
         Add a callback notification when the connection can not be opened.
@@ -322,7 +324,7 @@ class Connection(abc.ABC):
         self.callbacks.add(0, self.ON_CONNECTION_ERROR, callback, False)
 
     def remove_on_close_callback(
-            self, callback: Callable[[Connection, Exception], Any]) -> bool:
+            self, callback: Callable[[AMQPConnection, Exception], Any]) -> bool:
         """
         Remove a callback registered via :meth:`add_on_close_callback`.
 
@@ -333,9 +335,8 @@ class Connection(abc.ABC):
                                               lambda cb: cb == callback)
 
     def remove_on_connection_blocked_callback(
-        self,
-        callback: Callable[[Connection, frame.Method[spec.Connection.Blocked]],
-                           Any]
+        self, callback: Callable[
+            [AMQPConnection, frame.Method[spec.Connection.Blocked]], Any]
     ) -> bool:
         """Remove a callback registered via
         :meth:`add_on_connection_blocked_callback`.
@@ -356,7 +357,7 @@ class Connection(abc.ABC):
 
     def remove_on_connection_unblocked_callback(
         self, callback: Callable[
-            [Connection, frame.Method[spec.Connection.Unblocked]], Any]
+            [AMQPConnection, frame.Method[spec.Connection.Unblocked]], Any]
     ) -> bool:
         """Remove a callback registered via
         :meth:`add_on_connection_unblocked_callback`.
@@ -375,8 +376,8 @@ class Connection(abc.ABC):
         return self.callbacks.remove_matching(0, spec.Connection.Unblocked,
                                               matches)
 
-    def remove_on_open_callback(self, callback: Callable[[Connection],
-                                                         Any]) -> bool:
+    def remove_on_open_callback(
+            self, callback: Callable[[AMQPConnection], Any]) -> bool:
         """
         Remove a callback registered via :meth:`add_on_open_callback`.
 
@@ -387,8 +388,8 @@ class Connection(abc.ABC):
                                               lambda cb: cb == callback)
 
     def remove_on_open_error_callback(
-            self, callback: Callable[[Connection, BaseException | None],
-                                     Any]) -> bool:
+        self, callback: Callable[[AMQPConnection, BaseException | None],
+                                 Any]) -> bool:
         """
         Remove a callback registered via :meth:`add_on_open_error_callback`.
 
@@ -399,10 +400,10 @@ class Connection(abc.ABC):
                                               lambda cb: cb == callback)
 
     def channel(
-            self,
-            channel_number: int | None = None,
-            on_open_callback: Callable[[Channel], Any] | None = None
-    ) -> Channel:
+        self,
+        channel_number: int | None = None,
+        on_open_callback: Callable[[AMQPChannel], Any] | None = None
+    ) -> AMQPChannel:
         """
         Create a new channel with the next available channel number or pass in a channel number to
         use. Must be non-zero if you would like to specify but it is recommended that you let Pika
@@ -715,7 +716,8 @@ class Connection(abc.ABC):
 
     def _create_channel(
             self, channel_number: int,
-            on_open_callback: Callable[[Channel], Any] | None) -> Channel:
+            on_open_callback: Callable[[AMQPChannel], Any] | None
+    ) -> AMQPChannel:
         """
         Create a new channel using the specified channel number and calling back the method
         specified by on_open_callback.
@@ -725,15 +727,17 @@ class Connection(abc.ABC):
             invoked with the `Channel` instance as its only argument.
         """
         LOGGER.debug('Creating channel %s', channel_number)
-        return pika.channel.Channel(self, channel_number, on_open_callback)
+        return pika._core.channel.AMQPChannel(self, channel_number,
+                                              on_open_callback)
 
     def _create_heartbeat_checker(
-            self) -> pika.heartbeat.HeartbeatChecker | None:
+            self) -> pika._core.heartbeat.HeartbeatChecker | None:
         """Create a heartbeat checker instance if there is a heartbeat interval set."""
         if isinstance(self.params.heartbeat, int) and self.params.heartbeat > 0:
             LOGGER.debug('Creating a HeartbeatChecker: %r',
                          self.params.heartbeat)
-            return pika.heartbeat.HeartbeatChecker(self, self.params.heartbeat)
+            return pika._core.heartbeat.HeartbeatChecker(
+                self, self.params.heartbeat)
 
         return None
 
@@ -813,7 +817,7 @@ class Connection(abc.ABC):
 
     def _next_channel_number(self) -> int:
         """Return the next available channel number or raise an exception."""
-        limit = self.params.channel_max or pika.channel.MAX_CHANNELS
+        limit = self.params.channel_max or pika._core.channel.MAX_CHANNELS
         if len(self._channels) >= limit:
             raise exceptions.NoFreeChannels(host=self.params.host,
                                             port=self.params.port)
@@ -823,7 +827,7 @@ class Connection(abc.ABC):
                 return num
         return len(self._channels) + 1
 
-    def _on_channel_cleanup(self, channel: Channel) -> None:
+    def _on_channel_cleanup(self, channel: AMQPChannel) -> None:
         """
         Remove the channel from the dict of channels when Channel.CloseOk is sent.
 
@@ -892,7 +896,7 @@ class Connection(abc.ABC):
                 port=self.params.port))
 
     def _on_connection_blocked(
-            self, _connection: Connection,
+            self, _connection: AMQPConnection,
             method_frame: frame.Method[spec.Connection.Blocked]) -> None:
         """
         Handle Connection.Blocked notification from RabbitMQ broker.
@@ -916,7 +920,7 @@ class Connection(abc.ABC):
                 self._on_blocked_connection_timeout)
 
     def _on_connection_unblocked(
-            self, _connection: Connection,
+            self, _connection: AMQPConnection,
             method_frame: frame.Method[spec.Connection.Unblocked]) -> None:
         """
         Handle Connection.Unblocked notification from RabbitMQ broker.
@@ -967,7 +971,7 @@ class Connection(abc.ABC):
 
         self._terminate_stream(None)
 
-    def _default_on_connection_error(self, _connection_unused: Connection,
+    def _default_on_connection_error(self, _connection_unused: AMQPConnection,
                                      error: Exception) -> None:
         """
         Default behavior when the connecting connection cannot connect and user didn't supply own
@@ -1086,9 +1090,9 @@ class Connection(abc.ABC):
         self._set_connection_state(self.CONNECTION_TUNE)
 
         # Get our max channels, frames and heartbeat interval
-        self.params.channel_max = Connection._negotiate_integer_value(
+        self.params.channel_max = AMQPConnection._negotiate_integer_value(
             self.params.channel_max, method_frame.method.channel_max)
-        self.params.frame_max = Connection._negotiate_integer_value(
+        self.params.frame_max = AMQPConnection._negotiate_integer_value(
             self.params.frame_max, method_frame.method.frame_max)
 
         if callable(self.params.heartbeat):
@@ -1340,8 +1344,8 @@ class Connection(abc.ABC):
         Remove the callbacks for the specified channel number and list of method frames.
 
         :param channel_number: The channel number to remove the callback on
-        :param method_classes: The method classes (derived from `pika.amqp_object.Method`) for the
-            callbacks
+        :param method_classes: The method classes (derived from `pika._core.amqp_object.Method`) for
+            the callbacks
         """
         for method_cls in method_classes:
             self.callbacks.remove(str(channel_number), method_cls)

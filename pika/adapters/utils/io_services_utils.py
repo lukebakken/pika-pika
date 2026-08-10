@@ -14,9 +14,9 @@ import sys
 import traceback
 from typing import TYPE_CHECKING, Any, Callable, cast
 
-import pika._utils
-import pika.diagnostic_utils
-from pika._utils import override
+import pika._core._utils
+import pika._core.diagnostic_utils
+from pika._core._utils import override
 from pika.adapters.utils.nbio_interface import AbstractIOReference, AbstractStreamTransport
 
 if TYPE_CHECKING:
@@ -41,7 +41,8 @@ _CONNECTION_IN_PROGRESS_SOCK_ERROR_CODES = (
 _LOGGER = logging.getLogger(__name__)
 
 # Decorator that logs exceptions escaping from the decorated function
-_log_exceptions = pika.diagnostic_utils.create_log_exception_decorator(_LOGGER)
+_log_exceptions = pika._core.diagnostic_utils.create_log_exception_decorator(
+    _LOGGER)
 
 
 def check_callback_arg(callback: Any, name: str) -> None:
@@ -76,7 +77,7 @@ def _retry_on_sigint(func):
         while True:
             try:
                 return func(*args, **kwargs)
-            except pika._utils.SOCKET_ERROR as error:
+            except pika._core._utils.SOCKET_ERROR as error:
                 if error.errno == errno.EINTR:
                     continue
                 raise
@@ -309,8 +310,8 @@ class _AsyncSocketConnector:
 
         try:
             self._sock.connect(self._addr)
-        except (Exception, pika._utils.SOCKET_ERROR) as error:
-            if (isinstance(error, pika._utils.SOCKET_ERROR) and
+        except (Exception, pika._core._utils.SOCKET_ERROR) as error:
+            if (isinstance(error, pika._core._utils.SOCKET_ERROR) and
                     error.errno in _CONNECTION_IN_PROGRESS_SOCK_ERROR_CODES):
                 # Connection establishment is pending
                 pass
@@ -357,7 +358,7 @@ class _AsyncSocketConnector:
             error_msg = os.strerror(error_code)
             _LOGGER.error('Socket failed to connect: %s; error=%s (%s)',
                           self._sock, error_code, error_msg)
-            result = pika._utils.SOCKET_ERROR(error_code, error_msg)
+            result = pika._core._utils.SOCKET_ERROR(error_code, error_msg)
 
         self._report_completion(result)
 
@@ -910,7 +911,7 @@ class _AsyncTransportBase(AbstractStreamTransport):
             assert self._sock is not None
             try:
                 self._sock.shutdown(socket.SHUT_RDWR)
-            except pika._utils.SOCKET_ERROR:
+            except pika._core._utils.SOCKET_ERROR:
                 pass
             self._sock.close()
             self._sock = None
@@ -1099,8 +1100,8 @@ class _AsyncPlaintextTransport(_AsyncTransportBase):
                     _LOGGER.info('protocol.eof_received() elected to close: %s',
                                  self._sock)
                     self._initiate_abort(None)
-        except (Exception, pika._utils.SOCKET_ERROR) as error:
-            if (isinstance(error, pika._utils.SOCKET_ERROR) and
+        except (Exception, pika._core._utils.SOCKET_ERROR) as error:
+            if (isinstance(error, pika._core._utils.SOCKET_ERROR) and
                     error.errno in _TRY_IO_AGAIN_SOCK_ERROR_CODES):
                 _LOGGER.debug('Recv would block on %s', self._sock)
             else:
@@ -1137,8 +1138,8 @@ class _AsyncPlaintextTransport(_AsyncTransportBase):
         try:
             # Transmit buffered data to remote socket
             self._produce()
-        except (Exception, pika._utils.SOCKET_ERROR) as error:
-            if (isinstance(error, pika._utils.SOCKET_ERROR) and
+        except (Exception, pika._core._utils.SOCKET_ERROR) as error:
+            if (isinstance(error, pika._core._utils.SOCKET_ERROR) and
                     error.errno in _TRY_IO_AGAIN_SOCK_ERROR_CODES):
                 _LOGGER.debug('Send would block on %s', self._sock)
             else:

@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 
 import pika
 import pika.exceptions
-from pika._utils import as_bytes, time_now
+from pika._core._utils import as_bytes, time_now
 from pika.adapters import blocking_connection
 from pika.exchange_type import ExchangeType
 from tests.misc.forward_server import ForwardServer

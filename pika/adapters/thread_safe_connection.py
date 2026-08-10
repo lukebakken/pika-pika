@@ -28,7 +28,7 @@ if TYPE_CHECKING:
     from typing_extensions import Literal, Self
 
 from pika import spec
-from pika.adapters.select_connection import SelectConnection
+from pika._core.select_connection import SelectConnection
 from pika.exceptions import ConnectionWrongStateError, WorkQueueFullError
 
 LOGGER = logging.getLogger(__name__)
@@ -131,7 +131,7 @@ def _submit_or_terminate(pool: _BoundedWorkPool, connection: SelectConnection,
     Called on the IOLoop thread from the wrappers that hand user callbacks to a
     :class:`_BoundedWorkPool`.  A :class:`~pika.exceptions.WorkQueueFullError`
     means a slow callback let the queue stay full past ``work_queue_put_timeout``;
-    it is routed through :meth:`~pika.connection.Connection._terminate_stream` so
+    it is routed through :meth:`~pika._core.connection.AMQPConnection._terminate_stream` so
     the connection closes with :class:`~pika.exceptions.WorkQueueFullError` as the
     reason the application observes, rather than being caught by the transport's
     generic read-error handler and relabeled as an opaque
@@ -139,7 +139,7 @@ def _submit_or_terminate(pool: _BoundedWorkPool, connection: SelectConnection,
     is already shut down, so the callback is dropped.
 
     Once teardown has begun, ``connection._error`` is set synchronously (by the
-    first :meth:`~pika.connection.Connection._terminate_stream` call) while the
+    first :meth:`~pika._core.connection.AMQPConnection._terminate_stream` call) while the
     transport abort completes asynchronously on the IOLoop.  A broker that has
     buffered a burst of deliveries would otherwise keep dispatching them on this
     same thread before the abort runs, and each one would block for the full
@@ -315,7 +315,7 @@ class _BoundedWorkPool:
 
 class ThreadSafeChannel:
     """
-    Thread-safe wrapper around :class:`pika.channel.Channel`.
+    Thread-safe wrapper around :class:`pika._core.channel.AMQPChannel`.
 
     Every write operation is routed through the parent connection's
     ``add_callback_threadsafe`` so that ``_tx_buffers`` is only ever
@@ -1381,7 +1381,7 @@ class ThreadSafeConnection:
             ch.basic_publish(exchange='', routing_key='q', body='hello')
 
     :param parameters: Connection parameters.
-    :type parameters: pika.connection.Parameters
+    :type parameters: pika.parameters.Parameters
     :param on_open_error_callback:
         Called in the IOLoop thread if the connection cannot be established.
         Signature: ``on_open_error_callback(connection, exception)``
@@ -1942,7 +1942,8 @@ class ThreadSafeConnection:
         Register a connection-level event callback via the IOLoop.
 
         Wraps the user callback so it dispatches on the connection work pool, then schedules
-        registration with the underlying :class:`pika.connection.Connection` on the IOLoop thread.
+        registration with the underlying :class:`pika._core.connection.AMQPConnection` on the IOLoop
+        thread.
         :param raw_method_name: Unqualified AMQP method name (e.g. ``"Basic.Publish"``)
         :param callback: User callback to dispatch on the connection work pool."
         """

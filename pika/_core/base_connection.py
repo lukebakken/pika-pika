@@ -1,8 +1,15 @@
 """
-Base class extended by connection adapters.
+Base class binding the AMQP protocol engine to an I/O loop and transport.
 
-This extends the connection.Connection class to encapsulate connection behavior but still isolate
-socket and low level communication.
+:class:`AMQPConnection` implements the AMQP 0-9-1 protocol state machine but knows nothing about
+sockets or event loops: it turns method calls into frames and reacts to inbound frames, delegating
+all I/O to abstract hooks.  :class:`BaseConnection` fills those hooks in, driving the engine on top
+of an :class:`~pika.adapters.utils.nbio_interface.AbstractIOServices` I/O loop and stream transport.
+It owns the connection workflow (address resolution, socket connect, optional TLS handshake, AMQP
+bring-up) and forwards bytes between the transport and the protocol engine.
+
+Concrete adapters (for example :class:`~pika.SelectConnection`) subclass it to supply a specific
+I/O loop implementation; the protocol logic and the transport plumbing stay shared here.
 """
 
 from __future__ import annotations
@@ -13,30 +20,38 @@ import logging
 from typing import Any, Callable, Sequence, cast
 
 import pika.exceptions
-from pika import connection
-from pika._utils import override
+import pika.parameters
+from pika._core import connection
+from pika._core._utils import override
 from pika.adapters.utils import connection_workflow, nbio_interface
 
 LOGGER = logging.getLogger(__name__)
 
 
-class BaseConnection(connection.Connection):
+class BaseConnection(connection.AMQPConnection):
     """
-    BaseConnection class that should be extended by connection adapters.
+    Bind the AMQP protocol engine to an I/O loop and stream transport.
 
-    This class abstracts I/O loop and transport services from pika core.
+    Extends :class:`~pika._core.connection.AMQPConnection`, the transport-agnostic AMQP 0-9-1 state
+    machine, by supplying the I/O it leaves abstract: this class runs the protocol engine on an
+    :class:`~pika.adapters.utils.nbio_interface.AbstractIOServices` I/O loop, manages the connection
+    workflow (address resolution, socket connect, optional TLS handshake, AMQP bring-up), and shuttles
+    bytes between the stream transport and the engine.
+
+    It is not used directly.  Concrete adapters subclass it to bind a particular I/O loop; the shared
+    protocol and transport handling lives here so each adapter only provides its loop.
     """
 
-    def __init__(
-            self,
-            parameters: connection.Parameters | None,
-            on_open_callback: Callable[[connection.Connection], None] | None,
-            on_open_error_callback: Callable[
-                [connection.Connection, BaseException], None] | None,
-            on_close_callback: Callable[[connection.Connection, BaseException],
-                                        None] | None,
-            nbio: nbio_interface.AbstractIOServices,
-            internal_connection_workflow: bool = True) -> None:
+    def __init__(self,
+                 parameters: pika.parameters.Parameters | None,
+                 on_open_callback: Callable[[connection.AMQPConnection], None] |
+                 None,
+                 on_open_error_callback: Callable[
+                     [connection.AMQPConnection, BaseException], None] | None,
+                 on_close_callback: Callable[
+                     [connection.AMQPConnection, BaseException], None] | None,
+                 nbio: nbio_interface.AbstractIOServices,
+                 internal_connection_workflow: bool = True) -> None:
         """
         Create a new instance of the Connection object.
 
@@ -59,7 +74,8 @@ class BaseConnection(connection.Connection):
         :raises: RuntimeError
         :raises: ValueError
         """
-        if parameters and not isinstance(parameters, connection.Parameters):
+        if parameters and not isinstance(parameters,
+                                         pika.parameters.Parameters):
             raise ValueError(
                 f'Expected instance of Parameters, not {parameters!r}')
 
@@ -100,8 +116,8 @@ class BaseConnection(connection.Connection):
     @abc.abstractmethod
     def create_connection(
         cls,
-        connection_configs: Sequence[connection.Parameters],
-        on_done: Callable[[(connection.Connection |
+        connection_configs: Sequence[pika.parameters.Parameters],
+        on_done: Callable[[(connection.AMQPConnection |
                             connection_workflow.AMQPConnectorException)], None],
         custom_ioloop: Any | None = None,
         workflow: connection_workflow.AbstractAMQPConnectionWorkflow |
@@ -117,7 +133,7 @@ class BaseConnection(connection.Connection):
         See also `_start_connection_workflow()`.
 
         :param connection_configs: A sequence of one or more
-            `pika.connection.Parameters`-based objects.
+            `pika.parameters.Parameters`-based objects.
         :param on_done: as defined in
             `connection_workflow.AbstractAMQPConnectionWorkflow.start()`.
         :param custom_ioloop: Provide a custom I/O loop that is
@@ -135,21 +151,22 @@ class BaseConnection(connection.Connection):
 
     @classmethod
     def _start_connection_workflow(
-        cls, connection_configs: Sequence[connection.Parameters],
-        connection_factory: Callable[[connection.Parameters], BaseConnection],
+        cls, connection_configs: Sequence[pika.parameters.Parameters],
+        connection_factory: Callable[[pika.parameters.Parameters],
+                                     BaseConnection],
         nbio: nbio_interface.AbstractIOServices,
         workflow: connection_workflow.AbstractAMQPConnectionWorkflow | None,
-        on_done: Callable[[(connection.Connection |
+        on_done: Callable[[(connection.AMQPConnection |
                             connection_workflow.AMQPConnectorException)], None]
     ) -> connection_workflow.AbstractAMQPConnectionWorkflow:
         """
         Helper function for custom implementations of `create_connection()`.
 
         :param connection_configs: A sequence of one or more
-            `pika.connection.Parameters`-based objects.
+            `pika.parameters.Parameters`-based objects.
         :param connection_factory: A function that takes
-            `pika.connection.Parameters` as its only arg and returns a brand new
-            `pika.connection.Connection`-based adapter instance each time it is
+            `pika.parameters.Parameters` as its only arg and returns a brand new
+            `pika._core.connection.AMQPConnection`-based adapter instance each time it is
             called. The factory must instantiate the connection with
             `internal_connection_workflow=False`.
         :param nbio:

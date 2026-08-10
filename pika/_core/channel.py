@@ -10,15 +10,16 @@ from collections import deque
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Union
 
-from pika import exceptions, frame, spec, validators
-from pika._utils import as_bytes, override
+from pika import exceptions, frame, spec
+from pika._core import validators
+from pika._core._utils import as_bytes, override
 from pika.exchange_type import ExchangeType
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from pika import amqp_object
-    from pika.connection import Connection
+    from pika._core import amqp_object
+    from pika._core.connection import AMQPConnection
 
 LOGGER = logging.getLogger(__name__)
 
@@ -30,12 +31,12 @@ _OnConfirmDeliveryCallback = Callable[[frame.Method[spec.Confirm.SelectOk]],
                                       None]
 _OnBasicConsumeCallback = Callable[[frame.Method[spec.Basic.ConsumeOk]], None]
 _OnBasicGetCallback = Callable[
-    ['Channel', spec.Basic.GetOk, spec.BasicProperties, bytes], None]
+    ['AMQPChannel', spec.Basic.GetOk, spec.BasicProperties, bytes], None]
 _OnBasicRecoverCallback = Callable[[frame.Method[spec.Basic.RecoverOk]], None]
 _OnBasicQosCallback = Callable[[frame.Method[spec.Basic.QosOk]], None]
 _OnBasicCancelCallback = Callable[[frame.Method[spec.Basic.CancelOk]], None]
 _OnCancelCallback = Callable[[frame.Method[spec.Basic.Cancel]], Any]
-_OnCloseCallback = Callable[['Channel', Exception], None]
+_OnCloseCallback = Callable[['AMQPChannel', Exception], None]
 _OnExchangeBindCallback = Callable[[frame.Method[spec.Exchange.BindOk]], None]
 _OnExchangeDeclareCallback = Callable[[frame.Method[spec.Exchange.DeclareOk]],
                                       None]
@@ -45,21 +46,21 @@ _OnExchangeUnbindCallback = Callable[[frame.Method[spec.Exchange.UnbindOk]],
                                      None]
 _OnFlowCallback = Callable[[bool], None]
 _OnMessageCallback = Callable[
-    ['Channel', spec.Basic.Deliver, spec.BasicProperties, bytes], None]
-_OnOpenCallback = Callable[['Channel'], None]
+    ['AMQPChannel', spec.Basic.Deliver, spec.BasicProperties, bytes], None]
+_OnOpenCallback = Callable[['AMQPChannel'], None]
 _OnQueueBindCallback = Callable[[frame.Method[spec.Queue.BindOk]], None]
 _OnQueueDeclareCallback = Callable[[frame.Method[spec.Queue.DeclareOk]], None]
 _OnQueueDeleteCallback = Callable[[frame.Method[spec.Queue.DeleteOk]], None]
 _OnQueuePurgeCallback = Callable[[frame.Method[spec.Queue.PurgeOk]], None]
 _OnQueueUnbindCallback = Callable[[frame.Method[spec.Queue.UnbindOk]], None]
 _OnReturnCallback = Callable[
-    ['Channel', spec.Basic.Return, spec.BasicProperties, bytes], None]
+    ['AMQPChannel', spec.Basic.Return, spec.BasicProperties, bytes], None]
 _OnTxCommitCallback = Callable[[spec.Tx.CommitOk], None]
 _OnTxRollbackCallback = Callable[[spec.Tx.RollbackOk], None]
 _OnTxSelectCallback = Callable[[spec.Tx.SelectOk], None]
 
 
-class Channel:
+class AMQPChannel:
     """
     A Channel is the primary communication method for interacting with RabbitMQ.
 
@@ -82,7 +83,7 @@ class Channel:
 
     _ON_CHANNEL_CLEANUP_CB_KEY = '_on_channel_cleanup'
 
-    def __init__(self, connection: Connection, channel_number: int,
+    def __init__(self, connection: AMQPConnection, channel_number: int,
                  on_open_callback: _OnOpenCallback | None) -> None:
         """
         Create a new instance of the Channel.
@@ -205,7 +206,7 @@ class Channel:
         :param callback: The function to call, having the signature
                                 callback(channel, method, properties, body)
                                 where
-                                - channel: pika.channel.Channel
+                                - channel: pika._core.channel.AMQPChannel
                                 - method: pika.spec.Basic.Return
                                 - properties: pika.spec.BasicProperties
                                 - body: bytes
@@ -379,7 +380,7 @@ class Channel:
         :param on_message_callback: The function to call when
             consuming with the signature
             on_message_callback(channel, method, properties, body), where
-            - channel: pika.channel.Channel
+            - channel: pika._core.channel.AMQPChannel
             - method: pika.spec.Basic.Deliver
             - properties: pika.spec.BasicProperties
             - body: bytes
@@ -458,7 +459,7 @@ class Channel:
             channel
         :param callback: The callback to call with a message that has
             the signature callback(channel, method, properties, body), where:
-            - channel: pika.channel.Channel
+            - channel: pika._core.channel.AMQPChannel
             - method: pika.spec.Basic.GetOk
             - properties: pika.spec.BasicProperties
             - body: bytes

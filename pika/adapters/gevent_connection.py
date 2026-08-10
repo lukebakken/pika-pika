@@ -15,9 +15,9 @@ import gevent._interfaces  # type: ignore[import-untyped]
 import gevent.hub  # type: ignore[import-untyped]
 import gevent.socket  # type: ignore[import-untyped]
 
-import pika._utils
-from pika._utils import override
-from pika.adapters.base_connection import BaseConnection
+import pika._core._utils
+from pika._core._utils import override
+from pika._core.base_connection import BaseConnection
 from pika.adapters.utils.io_services_utils import check_callback_arg
 from pika.adapters.utils.nbio_interface import (
     AbstractIOReference,
@@ -29,7 +29,7 @@ from pika.adapters.utils.selector_ioloop_adapter import (
 )
 
 if TYPE_CHECKING:
-    from pika import connection
+    from pika._core import connection
     from pika.adapters.utils import connection_workflow, nbio_interface
 
 LOGGER = logging.getLogger(__name__)
@@ -42,18 +42,19 @@ class GeventConnection(BaseConnection):
     An async selector-based connection which integrates with Gevent.
     """
 
-    def __init__(
-            self,
-            parameters: connection.Parameters | None = None,
-            on_open_callback: Callable[[connection.Connection], None] |
-        None = None,
-            on_open_error_callback: Callable[
-                [connection.Connection, BaseException], None] | None = None,
-            on_close_callback: Callable[[connection.Connection, BaseException],
-                                        None] | None = None,
-            custom_ioloop: gevent._interfaces.ILoop | AbstractIOServices |
-        None = None,
-            internal_connection_workflow: bool = True) -> None:
+    def __init__(self,
+                 parameters: connection.Parameters | None = None,
+                 on_open_callback: Callable[[connection.AMQPConnection], None] |
+                 None = None,
+                 on_open_error_callback: Callable[
+                     [connection.AMQPConnection, BaseException], None] |
+                 None = None,
+                 on_close_callback: Callable[
+                     [connection.AMQPConnection, BaseException], None] |
+                 None = None,
+                 custom_ioloop: gevent._interfaces.ILoop | AbstractIOServices |
+                 None = None,
+                 internal_connection_workflow: bool = True) -> None:
         """
         Create a new GeventConnection instance and connect to RabbitMQ on Gevent's event-loop.
 
@@ -84,7 +85,7 @@ class GeventConnection(BaseConnection):
             DeprecationWarning,
             stacklevel=2,
         )
-        if pika._utils.ON_WINDOWS:
+        if pika._core._utils.ON_WINDOWS:
             raise RuntimeError('GeventConnection is not supported on Windows.')
 
         custom_ioloop = (custom_ioloop or
@@ -108,7 +109,7 @@ class GeventConnection(BaseConnection):
     def create_connection(
         cls,
         connection_configs: Sequence[connection.Parameters],
-        on_done: Callable[[(connection.Connection |
+        on_done: Callable[[(connection.AMQPConnection |
                             connection_workflow.AMQPConnectorException)], None],
         custom_ioloop: gevent._interfaces.ILoop | None = None,
         workflow: connection_workflow.AbstractAMQPConnectionWorkflow |
@@ -134,7 +135,7 @@ class GeventConnection(BaseConnection):
             :param params: Connection parameters
             """
             if params is None:
-                raise ValueError('Expected pika.connection.Parameters '
+                raise ValueError('Expected pika.parameters.Parameters '
                                  'instance, but got None in params arg.')
             return cls(parameters=params,
                        custom_ioloop=nbio,

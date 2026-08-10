@@ -9,7 +9,7 @@ import socket
 import threading
 from typing import Any, Callable
 
-from pika._utils import Protocol, override, runtime_checkable
+from pika._core._utils import Protocol, override, runtime_checkable
 from pika.adapters.utils import io_services_utils, nbio_interface
 from pika.adapters.utils.io_services_utils import check_callback_arg, check_fd_arg
 
@@ -29,7 +29,7 @@ class AbstractSelectorIOLoop(Protocol):
     A `Protocol` rather than a base class so that loops implementing this
     interface without deriving from it, such as `tornado.ioloop.IOLoop`, satisfy
     it structurally. `Protocol` reached the stdlib in 3.8, so on 3.7 this falls
-    back to a plain base class; see `pika._utils`.
+    back to a plain base class; see `pika._core._utils`.
 
     The methods carry no `@abc.abstractmethod` decorators. `typing._ProtocolMeta`
     derives from `abc.ABCMeta`, so adding them back would populate

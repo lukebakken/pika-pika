@@ -14,7 +14,7 @@ import traceback
 from datetime import datetime, timezone
 from functools import partial
 
-import pika._utils
+import pika._core._utils
 
 
 def buffer(object_, offset, size):
@@ -365,9 +365,9 @@ class _TCPHandler(socketserver.StreamRequestHandler):
                    datetime.now(timezone.utc), remote_dest_sock.getpeername())
         else:
             # Echo set-up
-            # NOTE: Use pika._utils.nonblocking_socketpair() since
+            # NOTE: Use pika._core._utils.nonblocking_socketpair() since
             # socket.socketpair() isn't available on Windows under python 2 yet.
-            remote_dest_sock, remote_src_sock = pika._utils.nonblocking_socketpair(
+            remote_dest_sock, remote_src_sock = pika._core._utils.nonblocking_socketpair(
             )
             # We rely on blocking I/O
             remote_dest_sock.setblocking(True)
@@ -416,7 +416,7 @@ class _TCPHandler(socketserver.StreamRequestHandler):
             while True:
                 try:
                     nbytes = src_sock.recv_into(rx_buf)
-                except pika._utils.SOCKET_ERROR as exc:
+                except pika._core._utils.SOCKET_ERROR as exc:
                     if exc.errno == errno.EINTR:
                         continue
                     if exc.errno == errno.ECONNRESET:
@@ -437,7 +437,7 @@ class _TCPHandler(socketserver.StreamRequestHandler):
 
                 try:
                     dest_sock.sendall(buffer(rx_buf, 0, nbytes))
-                except pika._utils.SOCKET_ERROR as exc:
+                except pika._core._utils.SOCKET_ERROR as exc:
                     if exc.errno == errno.EPIPE:
                         # Destination peer closed its end of the connection
                         _trace(
@@ -492,7 +492,7 @@ def echo(port=0):
         while True:
             try:
                 data = sock.recv(4 * 1024)
-            except pika._utils.SOCKET_ERROR as exc:
+            except pika._core._utils.SOCKET_ERROR as exc:
                 if exc.errno == errno.EINTR:
                     continue
                 raise
@@ -512,6 +512,6 @@ def _safe_shutdown_socket(sock, how=socket.SHUT_RDWR):
     """Shutdown a socket, suppressing ENOTCONN."""
     try:
         sock.shutdown(how)
-    except pika._utils.SOCKET_ERROR as exc:
+    except pika._core._utils.SOCKET_ERROR as exc:
         if exc.errno != errno.ENOTCONN:
             raise

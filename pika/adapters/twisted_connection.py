@@ -22,11 +22,11 @@ from twisted.internet import defer, protocol, reactor
 from twisted.internet import error as twisted_error
 from twisted.python.failure import Failure
 
-import pika.connection
+import pika._core.connection
 import pika.frame
 import pika.spec
 from pika import exceptions, spec
-from pika._utils import override
+from pika._core._utils import override
 from pika.adapters.utils import nbio_interface
 from pika.adapters.utils.io_services_utils import check_callback_arg
 from pika.exchange_type import ExchangeType
@@ -37,7 +37,7 @@ if TYPE_CHECKING:
     import twisted.internet.interfaces
     from twisted.internet.defer import Deferred
 
-    from pika import amqp_object, channel
+    from pika._core import amqp_object, channel
 
 LOGGER = logging.getLogger(__name__)
 
@@ -120,7 +120,7 @@ class TwistedChannel:
     for details.
     """
 
-    def __init__(self, channel: channel.Channel) -> None:
+    def __init__(self, channel: channel.AMQPChannel) -> None:
         self._channel = channel
         self._closed: Exception | None = None
         self._calls: set[defer.Deferred[Any]] = set()
@@ -149,7 +149,7 @@ class TwistedChannel:
     def __repr__(self) -> str:
         return f'<{self.__class__.__name__} channel={self._channel!r}>'
 
-    def _on_channel_closed(self, _channel: channel.Channel,
+    def _on_channel_closed(self, _channel: channel.AMQPChannel,
                            reason: Exception | None) -> None:
         # enter the closed state
         self._closed = reason
@@ -275,7 +275,7 @@ class TwistedChannel:
         return self._channel.channel_number
 
     @property
-    def connection(self) -> pika.connection.Connection:
+    def connection(self) -> pika._core.connection.AMQPConnection:
         return self._channel.connection
 
     @property
@@ -373,8 +373,8 @@ class TwistedChannel:
         basic.cancel from the client). This allows clients to be notified of the loss of consumers
         due to events such as queue deletion.
 
-        This method wraps :meth:`Channel.basic_cancel <pika.channel.Channel.basic_cancel>` and
-        closes any deferred queue associated with that consumer.
+        This method wraps :meth:`Channel.basic_cancel <pika._core.channel.AMQPChannel.basic_cancel>`
+        and closes any deferred queue associated with that consumer.
 
         :param consumer_tag: Identifier for the consumer
         :returns: Deferred that fires on the Basic.CancelOk response
@@ -483,7 +483,7 @@ class TwistedChannel:
         https://www.rabbitmq.com/amqp-0-9-1-reference.html#basic.get
 
         This method wraps :meth:`Channel.basic_get
-        <pika.channel.Channel.basic_get>`.
+        <pika._core.channel.AMQPChannel.basic_get>`.
 
         :param queue: The queue from which to get a message. Use the empty
                       string to specify the most recent server-named queue
@@ -556,8 +556,9 @@ class TwistedChannel:
         """
         Publish to the channel with the given exchange, routing key and body.
 
-        This method wraps :meth:`Channel.basic_publish <pika.channel.Channel.basic_publish>`, but
-        makes sure the channel is not closed before publishing.
+        This method wraps :meth:`Channel.basic_publish
+        <pika._core.channel.AMQPChannel.basic_publish>`, but makes sure the channel is not closed
+        before publishing.
 
         For more information on basic_publish and what the parameters do, see:
 
@@ -747,7 +748,7 @@ class TwistedChannel:
                 else:
                     d.callback(method_frame.method)
 
-    def _on_puback_message_returned(self, channel: channel.Channel,
+    def _on_puback_message_returned(self, channel: channel.AMQPChannel,
                                     method: spec.Basic.Return,
                                     properties: spec.BasicProperties,
                                     body: bytes) -> None:
@@ -965,8 +966,9 @@ class TwistedChannel:
         """
         Delete a queue from the broker.
 
-        This method wraps :meth:`Channel.queue_delete <pika.channel.Channel.queue_delete>`, and
-        removes the reference to the queue object after it gets deleted on the server.
+        This method wraps :meth:`Channel.queue_delete
+        <pika._core.channel.AMQPChannel.queue_delete>`, and removes the reference to the queue
+        object after it gets deleted on the server.
 
         :param queue: The queue to delete
         :param if_unused: only delete if it's unused
@@ -1054,25 +1056,26 @@ class TwistedChannel:
         return self._wrap_channel_method('tx_select')()
 
 
-class _TwistedConnectionAdapter(pika.connection.Connection):
+class _TwistedConnectionAdapter(pika._core.connection.AMQPConnection):
     """
     A Twisted-specific implementation of a Pika Connection.
 
     NOTE: since `base_connection.BaseConnection`'s primary responsibility is
-    management of the transport, we use `pika.connection.Connection` directly
+    management of the transport, we use `pika._core.connection.AMQPConnection` directly
     as our base class because this adapter uses a different transport
     management strategy.
     """
 
-    def __init__(self,
-                 parameters: pika.connection.Parameters | None,
-                 on_open_callback: Callable[[pika.connection.Connection], Any] |
-                 None,
-                 on_open_error_callback: Callable[
-                     [pika.connection.Connection, Exception], Any] | None,
-                 on_close_callback: Callable[
-                     [pika.connection.Connection, Exception], Any] | None,
-                 custom_reactor: Any = None) -> None:
+    def __init__(
+            self,
+            parameters: pika.parameters.Parameters | None,
+            on_open_callback: Callable[[pika._core.connection.AMQPConnection],
+                                       Any] | None,
+            on_open_error_callback: Callable[
+                [pika._core.connection.AMQPConnection, Exception], Any] | None,
+            on_close_callback: Callable[
+                [pika._core.connection.AMQPConnection, Exception], Any] | None,
+            custom_reactor: Any = None) -> None:
         super().__init__(parameters=parameters,
                          on_open_callback=on_open_callback,
                          on_open_error_callback=on_open_error_callback,
@@ -1198,7 +1201,7 @@ class TwistedProtocolConnection(protocol.Protocol):
     """
 
     def __init__(self,
-                 parameters: pika.connection.ConnectionParameters | None = None,
+                 parameters: pika.parameters.ConnectionParameters | None = None,
                  custom_reactor: Any = None) -> None:
         warnings.warn(
             'TwistedProtocolConnection is deprecated and will be removed in '
@@ -1287,15 +1290,15 @@ class TwistedProtocolConnection(protocol.Protocol):
         """This method will be called when the underlying connection is ready."""
         return self
 
-    def _on_connection_ready(self,
-                             _connection: pika.connection.Connection) -> None:
+    def _on_connection_ready(
+            self, _connection: pika._core.connection.AMQPConnection) -> None:
         d, self.ready = self.ready, None
         if d:
             self.closed = defer.Deferred()
             d.callback(None)
 
     def _on_connection_failed(self,
-                              _connection: pika.connection.Connection,
+                              _connection: pika._core.connection.AMQPConnection,
                               _error_message: Exception | None = None) -> None:
         d, self.ready = self.ready, None
         if d:
@@ -1305,7 +1308,8 @@ class TwistedProtocolConnection(protocol.Protocol):
                                                  port=self._impl.params.port)
             d.errback(exc)
 
-    def _on_connection_closed(self, _connection: pika.connection.Connection,
+    def _on_connection_closed(self,
+                              _connection: pika._core.connection.AMQPConnection,
                               exception: Exception | Failure) -> None:
         # `Failure` is not an `Exception` subclass, so it has to be named in the
         # annotation. `Connection` itself only ever passes an `Exception`, but

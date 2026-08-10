@@ -9,7 +9,7 @@ from pika.adapters.utils import selector_ioloop_adapter
 
 class TornadoConnectionTests(unittest.TestCase):
 
-    @mock.patch('pika.adapters.base_connection.BaseConnection.__init__')
+    @mock.patch('pika._core.base_connection.BaseConnection.__init__')
     def test_tornado_connection_call_parent(self, mock_init):
         _SelectorIOServicesAdapter = (
             selector_ioloop_adapter.SelectorIOServicesAdapter)

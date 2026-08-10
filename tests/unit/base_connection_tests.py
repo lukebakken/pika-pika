@@ -5,8 +5,8 @@ import unittest
 from unittest import mock
 
 import pika
-import pika.tcp_socket_opts
-from pika.adapters import base_connection
+import pika._core.tcp_socket_opts
+from pika._core import base_connection
 
 # If this is missing, set it manually. We need it to test tcp opt setting.
 try:
@@ -55,10 +55,12 @@ class BaseConnectionTests(unittest.TestCase):
         params = pika.ConnectionParameters(tcp_options=tcp_options)
         self.assertEqual(params.tcp_options, tcp_options)
 
-        with mock.patch.dict('pika.tcp_socket_opts._SUPPORTED_TCP_OPTIONS',
-                             {'TCP_KEEPIDLE': TCP_KEEPIDLE}):
+        with mock.patch.dict(
+                'pika._core.tcp_socket_opts._SUPPORTED_TCP_OPTIONS',
+            {'TCP_KEEPIDLE': TCP_KEEPIDLE}):
             sock_mock = mock.Mock()
-            pika.tcp_socket_opts.set_sock_opts(params.tcp_options, sock_mock)
+            pika._core.tcp_socket_opts.set_sock_opts(params.tcp_options,
+                                                     sock_mock)
 
             expected = [
                 mock.call.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1),
@@ -73,7 +75,7 @@ class BaseConnectionTests(unittest.TestCase):
         self.assertEqual(params.tcp_options, tcp_options)
 
         sock_mock = mock.Mock()
-        pika.tcp_socket_opts.set_sock_opts(params.tcp_options, sock_mock)
+        pika._core.tcp_socket_opts.set_sock_opts(params.tcp_options, sock_mock)
 
         keepalive_call = mock.call.setsockopt(socket.SOL_SOCKET,
                                               socket.SO_KEEPALIVE, 1)
@@ -85,7 +87,7 @@ class BaseConnectionTests(unittest.TestCase):
         self.assertIsNone(params.tcp_options)
 
         sock_mock = mock.Mock()
-        pika.tcp_socket_opts.set_sock_opts(params.tcp_options, sock_mock)
+        pika._core.tcp_socket_opts.set_sock_opts(params.tcp_options, sock_mock)
 
         keepalive_call = mock.call.setsockopt(socket.SOL_SOCKET,
                                               socket.SO_KEEPALIVE, 1)

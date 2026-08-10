@@ -1,4 +1,4 @@
-"""Tests for pika.callback."""
+"""Tests for pika._core.callback."""
 
 from __future__ import annotations
 
@@ -7,7 +7,8 @@ import unittest
 from typing import ClassVar
 from unittest import mock
 
-from pika import callback, frame, spec
+from pika import frame, spec
+from pika._core import callback
 
 
 class CallbackTests(unittest.TestCase):
@@ -134,7 +135,8 @@ class CallbackTests(unittest.TestCase):
         def add_callback():
             self.obj.add(self.PREFIX, self.KEY, mock_callback, False)
 
-        with mock.patch('pika.callback.LOGGER', spec=logging.Logger) as logger:
+        with mock.patch('pika._core.callback.LOGGER',
+                        spec=logging.Logger) as logger:
             logger.warning = mock.Mock()
             add_callback()
             add_callback()
